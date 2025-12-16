@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -90,21 +89,5 @@ public class CatalogController {
             return ResponseEntity.notFound().build();
         else
             return ResponseEntity.ok(satelliteOpt);
-    }
-
-    /**
-     * Get objects in a specific altitude band.
-     */
-    @GetMapping("/catalog/altitude")
-    public ResponseEntity<?> getByAltitude(
-            @RequestParam double minKm,
-            @RequestParam double maxKm) {
-        List<Satellite> sats = satelliteRepository.findInAltitudeBand(minKm, maxKm);
-        return ResponseEntity.ok(Map.of(
-                "count", sats.size(),
-                "minAltKm", minKm,
-                "maxAltKm", maxKm,
-                "objects", sats
-        ));
     }
 }

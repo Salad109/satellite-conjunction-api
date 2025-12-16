@@ -19,15 +19,15 @@ public class RestClientConfig {
 
         // Build HttpClient with cookie support
         CloseableHttpClient httpClient = HttpClients.custom()
-            .setDefaultCookieStore(cookieStore)
-            .build();
+                .setDefaultCookieStore(cookieStore)
+                .build();
 
         HttpComponentsClientHttpRequestFactory factory =
-            new HttpComponentsClientHttpRequestFactory(httpClient);
+                new HttpComponentsClientHttpRequestFactory(httpClient);
 
         return RestClient.builder()
-            .requestFactory(factory)
-            .baseUrl("https://www.space-track.org")
-            .build();
+                .requestFactory(factory)
+                .baseUrl("https://www.space-track.org")
+                .build();
     }
 }
