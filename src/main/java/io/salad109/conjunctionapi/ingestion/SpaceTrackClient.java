@@ -58,9 +58,9 @@ public class SpaceTrackClient {
     }
 
     /**
-     * Fetch the entire GP catalog (current TLEs for all objects).
+     * Fetch the GP catalog (current TLEs for all objects).
      */
-    public List<OmmRecord> fetchFullCatalog() throws IOException {
+    public List<OmmRecord> fetchCatalog() throws IOException {
         login();
 
         log.debug("Fetching full GP catalog from Space-Track...");

@@ -37,5 +37,8 @@ public class IngestionLog {
     @Column(name = "objects_skipped")
     private int objectsSkipped;
 
+    @Column(name = "objects_deleted")
+    private int objectsDeleted;
+
     private boolean successful;
 }

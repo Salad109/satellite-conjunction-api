@@ -26,10 +26,10 @@ public class CatalogController {
     /**
      * Trigger a full catalog sync from Space-Track.
      */
-    @PostMapping("/catalog/sync/full")
-    public ResponseEntity<?> fullSync() {
+    @PostMapping("/catalog/sync")
+    public ResponseEntity<?> sync() {
         try {
-            var result = ingestionService.fullSync();
+            var result = ingestionService.sync();
             return ResponseEntity.ok(Map.of(
                     "status", "completed",
                     "processed", result.processed(),

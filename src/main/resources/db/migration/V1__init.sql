@@ -59,5 +59,6 @@ CREATE TABLE ingestion_log
     objects_inserted  INTEGER                  DEFAULT 0,
     objects_updated   INTEGER                  DEFAULT 0,
     objects_skipped   INTEGER                  DEFAULT 0,
+    objects_deleted   INTEGER                  DEFAULT 0,
     successful        BOOLEAN                  DEFAULT FALSE
 );

@@ -42,12 +42,12 @@ public class IngestionService {
      */
     @Scheduled(cron = "${ingestion.schedule.cron:0 21 */6 * * *}")
     @Transactional
-    public IngestionResult fullSync() throws IOException {
-        log.info("Starting full catalog sync...");
+    public IngestionResult sync() throws IOException {
+        log.info("Starting catalog sync...");
         long startTime = System.currentTimeMillis();
         OffsetDateTime startedAt = OffsetDateTime.now();
 
-        List<OmmRecord> records = spaceTrackClient.fetchFullCatalog();
+        List<OmmRecord> records = spaceTrackClient.fetchCatalog();
         IngestionResult result = processRecords(records);
 
         ingestionLogRepository.save(new IngestionLog(
@@ -58,11 +58,13 @@ public class IngestionService {
                 result.created,
                 result.updated,
                 result.skipped,
+                result.deleted,
                 true
         )); // todo handle unsuccessful checks
 
         long duration = System.currentTimeMillis() - startTime;
-        log.info("Full sync completed in {}ms: {}", duration, result);
+        log.info("Sync completed in {}ms. {} processed, {} created, {} updated, {} skipped, {} deleted",
+                duration, result.processed, result.created, result.updated, result.skipped, result.deleted);
 
         return result;
     }
@@ -76,16 +78,21 @@ public class IngestionService {
         int created = 0;
         int updated = 0;
         int skipped = 0;
+        int deleted;
 
-        // Load existing satellites
-        List<Integer> noradIds = records.stream()
+        List<Integer> catalogIds = records.stream()
                 .filter(OmmRecord::isValid)
                 .map(OmmRecord::noradCatId)
                 .distinct()
                 .toList();
 
+        // Delete satellites not in the new catalog
+        deleted = satelliteRepository.deleteSatellitesByNoradCatIdNotIn(catalogIds);
+        log.debug("Deleted {} satellites not present in the new catalog", deleted);
+
+        // Load existing satellites
         Map<Integer, Satellite> existingSatellites = satelliteRepository
-                .findAllById(noradIds)
+                .findAllById(catalogIds)
                 .stream()
                 .collect(Collectors.toMap(Satellite::getNoradCatId, Function.identity()));
 
@@ -127,9 +134,9 @@ public class IngestionService {
             log.debug("Saving batch of {} satellites", toSave.size());
         }
 
-        log.debug("Processing complete: {} processed, {} created, {} updated, {} skipped",
-                processed, created, updated, skipped);
-        return new IngestionResult(processed, created, updated, skipped);
+        log.debug("Processing complete: {} processed, {} created, {} updated, {} skipped, {} deleted",
+                processed, created, updated, skipped, deleted);
+        return new IngestionResult(processed, created, updated, skipped, deleted);
     }
 
     private void updateSatellite(Satellite sat, OmmRecord record) {
@@ -158,6 +165,6 @@ public class IngestionService {
         sat.computeDerivedParameters();
     }
 
-    public record IngestionResult(int processed, int created, int updated, int skipped) {
+    public record IngestionResult(int processed, int created, int updated, int skipped, int deleted) {
     }
 }
