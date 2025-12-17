@@ -1,20 +1,17 @@
-version: '3.8'
-
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: conjunction-db
     environment:
-      POSTGRES_DB: conjunction
-      POSTGRES_USER: conjunction
-      POSTGRES_PASSWORD: conjunction_dev_password
+      POSTGRES_DB: ${POSTGRES_DB:-conjunction_db}
+      POSTGRES_USER: ${POSTGRES_USER:-conjunction_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - conjunction_data:/var/lib/postgresql/data
-      - ./init-db:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U conjunction -d conjunction" ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-conjunction_user} -d ${POSTGRES_DB:-conjunction_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,18 +23,14 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/conjunction
-      SPRING_DATASOURCE_USERNAME: conjunction
-      SPRING_DATASOURCE_PASSWORD: conjunction_dev_password
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-conjunction_db}
+      POSTGRES_USER: ${POSTGRES_USER:-conjunction_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       SPACETRACK_USERNAME: ${SPACETRACK_USERNAME}
       SPACETRACK_PASSWORD: ${SPACETRACK_PASSWORD}
     ports:
-      - "8080:8080"
-    volumes:
-      - tle_cache:/app/cache
+      - "${APP_PORT:-8080}:8080"
 
 volumes:
-  conjunction_data:
-    name: conjunction_postgres_data
-  tle_cache:
-    name: conjunction_tle_cache
+  postgres_data:
