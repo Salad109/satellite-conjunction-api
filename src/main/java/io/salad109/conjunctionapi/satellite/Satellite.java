@@ -22,13 +22,13 @@ public class Satellite {
     @Column(name = "norad_cat_id")
     private Integer noradCatId;
 
-    @Column(name = "object_name", length = 25)
+    @Column(name = "object_name")
     private String objectName;
 
-    @Column(name = "object_type", length = 20)
+    @Column(name = "object_type")
     private String objectType;
 
-    @Column(name = "country_code", length = 10)
+    @Column(name = "country_code")
     private String countryCode;
 
     @Column(name = "launch_date")
@@ -41,10 +41,10 @@ public class Satellite {
     @Column(name = "epoch")
     private OffsetDateTime epoch;
 
-    @Column(name = "tle_line1", length = 70)
+    @Column(name = "tle_line1")
     private String tleLine1;
 
-    @Column(name = "tle_line2", length = 70)
+    @Column(name = "tle_line2")
     private String tleLine2;
 
     // Orbital elements

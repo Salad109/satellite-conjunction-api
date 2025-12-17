@@ -24,16 +24,17 @@ public class IngestionService {
 
     private final SpaceTrackClient spaceTrackClient;
     private final SatelliteRepository satelliteRepository;
+    private final IngestionLogRepository ingestionLogRepository;
 
     @Value("${ingestion.batch-size:1000}")
     private int batchSize;
 
-    private OffsetDateTime lastSync;
-
     public IngestionService(SpaceTrackClient spaceTrackClient,
-                            SatelliteRepository satelliteRepository) {
+                            SatelliteRepository satelliteRepository,
+                            IngestionLogRepository ingestionLogRepository) {
         this.spaceTrackClient = spaceTrackClient;
         this.satelliteRepository = satelliteRepository;
+        this.ingestionLogRepository = ingestionLogRepository;
     }
 
     /**
@@ -43,11 +44,22 @@ public class IngestionService {
     public IngestionResult fullSync() throws IOException {
         log.info("Starting full catalog sync...");
         long startTime = System.currentTimeMillis();
+        OffsetDateTime startedAt = OffsetDateTime.now();
 
         List<OmmRecord> records = spaceTrackClient.fetchFullCatalog();
         IngestionResult result = processRecords(records);
 
-        lastSync = OffsetDateTime.now();
+        ingestionLogRepository.save(new IngestionLog(
+                null,
+                startedAt,
+                OffsetDateTime.now(),
+                result.processed,
+                result.created,
+                result.updated,
+                result.skipped,
+                true
+        )); // todo handle unsuccessful checks
+
         long duration = System.currentTimeMillis() - startTime;
         log.info("Full sync completed in {}ms: {}", duration, result);
 
@@ -56,27 +68,34 @@ public class IngestionService {
 
     /**
      * Incremental sync - fetch only TLEs updated since last sync.
-     * Scheduled to run every 6 hours by default.
      */
     @Scheduled(cron = "${ingestion.schedule.cron:0 21 */6 * * *}")
     @Transactional
     public IngestionResult incrementalSync() throws IOException {
-        OffsetDateTime since = lastSync != null ? lastSync : OffsetDateTime.now().minusDays(1);
+        var logOptional = ingestionLogRepository.findTopBySuccessfulOrderByCompletedAtDesc(true);
+        if (logOptional.isEmpty()) {
+            log.info("No previous sync log found, performing full sync instead");
+            return fullSync();
+        }
+        OffsetDateTime since = logOptional.get().getStartedAt();
 
         log.info("Starting incremental sync since {}...", since);
         long startTime = System.currentTimeMillis();
+        OffsetDateTime startedAt = OffsetDateTime.now();
 
         List<OmmRecord> records = spaceTrackClient.fetchUpdatedSince(since.toInstant());
-
-        if (records.isEmpty()) {
-            log.info("No updates found");
-            lastSync = OffsetDateTime.now();
-            return new IngestionResult(0, 0, 0, 0);
-        }
-
         IngestionResult result = processRecords(records);
 
-        lastSync = OffsetDateTime.now();
+        ingestionLogRepository.save(new IngestionLog(
+                null,
+                startedAt,
+                OffsetDateTime.now(),
+                result.processed,
+                result.created,
+                result.updated,
+                result.skipped,
+                true));
+
         long duration = System.currentTimeMillis() - startTime;
         log.info("Incremental sync completed in {}ms: {}", duration, result);
 
