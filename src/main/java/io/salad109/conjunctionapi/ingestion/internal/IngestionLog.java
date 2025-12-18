@@ -25,9 +25,6 @@ public class IngestionLog {
     @Column(name = "completed_at")
     private OffsetDateTime completedAt;
 
-    @Column(name = "objects_processed")
-    private int objectsProcessed;
-
     @Column(name = "objects_inserted")
     private int objectsInserted;
 

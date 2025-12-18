@@ -53,11 +53,11 @@ public class IngestionService {
         try {
             List<OmmRecord> records = spaceTrackClient.fetchCatalog();
             ProcessingResult processingResult = processRecords(records);
-            SyncResult syncResult = new SyncResult(startedAt, processingResult.processed(), processingResult.created(), processingResult.updated(), processingResult.skipped(), processingResult.deleted(), true);
+            SyncResult syncResult = new SyncResult(startedAt, processingResult.created(), processingResult.updated(), processingResult.skipped(), processingResult.deleted(), true);
             ingestionLogService.saveIngestionLog(syncResult, null);
 
-            log.info("Sync completed in {}ms. {} processed, {} created, {} updated, {} skipped, {} deleted",
-                    System.currentTimeMillis() - startTime, processingResult.processed(), processingResult.created(), processingResult.updated(), processingResult.skipped(), processingResult.deleted());
+            log.info("Sync completed in {}ms. {} created, {} updated, {} skipped, {} deleted",
+                    System.currentTimeMillis() - startTime, processingResult.created(), processingResult.updated(), processingResult.skipped(), processingResult.deleted());
 
             return syncResult;
         } catch (IOException e) {
@@ -125,7 +125,7 @@ public class IngestionService {
         log.debug("Processing complete: {} created, {} updated, {} skipped, {} deleted",
                 created, updated, skipped, deleted);
 
-        return new ProcessingResult(created + updated, created, updated, skipped, deleted);
+        return new ProcessingResult(created, updated, skipped, deleted);
     }
 
     private void updateSatellite(Satellite sat, OmmRecord ommRecord) {
@@ -179,6 +179,6 @@ public class IngestionService {
         return satellites.size();
     }
 
-    private record ProcessingResult(int processed, int created, int updated, int skipped, int deleted) {
+    private record ProcessingResult(int created, int updated, int skipped, int deleted) {
     }
 }

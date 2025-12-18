@@ -52,14 +52,15 @@ CREATE INDEX idx_conjunction_distance ON conjunction_candidate (miss_distance_km
 -- Ingestion log for tracking sync status
 CREATE TABLE ingestion_log
 (
-    id                SERIAL PRIMARY KEY,
-    started_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    completed_at      TIMESTAMP WITH TIME ZONE,
-    objects_processed INTEGER                  DEFAULT 0,
-    objects_inserted  INTEGER                  DEFAULT 0,
-    objects_updated   INTEGER                  DEFAULT 0,
-    objects_skipped   INTEGER                  DEFAULT 0,
-    objects_deleted   INTEGER                  DEFAULT 0,
-    successful        BOOLEAN                  DEFAULT FALSE,
-    error_message     TEXT                     DEFAULT NULL
+    id               SERIAL PRIMARY KEY,
+    started_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at     TIMESTAMP WITH TIME ZONE,
+    objects_inserted INTEGER                  DEFAULT 0,
+    objects_updated  INTEGER                  DEFAULT 0,
+    objects_skipped  INTEGER                  DEFAULT 0,
+    objects_deleted  INTEGER                  DEFAULT 0,
+    successful       BOOLEAN                  DEFAULT FALSE,
+    error_message    TEXT                     DEFAULT NULL
 );
+
+CREATE INDEX idx_ingestion_started_at ON ingestion_log (started_at);

@@ -4,7 +4,6 @@ import java.time.OffsetDateTime;
 
 public record SyncResult(
         OffsetDateTime startedAt,
-        int objectsProcessed,
         int objectsInserted,
         int objectsUpdated,
         int objectsSkipped,
@@ -12,6 +11,6 @@ public record SyncResult(
         boolean successful
 ) {
     public static SyncResult failed(OffsetDateTime startedAt) {
-        return new SyncResult(startedAt, 0, 0, 0, 0, 0, false);
+        return new SyncResult(startedAt, 0, 0, 0, 0, false);
     }
 }
