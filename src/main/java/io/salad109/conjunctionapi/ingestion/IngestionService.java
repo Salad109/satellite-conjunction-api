@@ -70,74 +70,65 @@ public class IngestionService {
         }
     }
 
+    private record ProcessingResult(int processed, int created, int updated, int skipped, int deleted) {
+    }
+
     /**
      * Process OMM records - upsert satellites with their current TLE data.
      */
     private ProcessingResult processRecords(List<OmmRecord> records) {
         log.debug("Processing {} records...", records.size());
-        int processed = 0;
-        int created = 0;
-        int updated = 0;
-        int skipped = 0;
-        int deleted;
 
-        List<Integer> catalogIds = records.stream()
+        // Filter to valid records only
+        List<OmmRecord> validRecords = records.stream()
                 .filter(OmmRecord::isValid)
+                .toList();
+
+        int skipped = records.size() - validRecords.size();
+        log.debug("Filtered {} invalid records", skipped);
+
+        // Extract catalog IDs
+        List<Integer> catalogIds = validRecords.stream()
                 .map(OmmRecord::noradCatId)
                 .distinct()
                 .toList();
 
-        // Delete satellites not in the new catalog
-        deleted = satelliteRepository.deleteSatellitesByNoradCatIdNotIn(catalogIds);
+        // Clean up removed satellites
+        int deleted = satelliteRepository.deleteSatellitesByNoradCatIdNotIn(catalogIds);
         log.debug("Deleted {} satellites not present in the new catalog", deleted);
 
-        // Load existing satellites
-        Map<Integer, Satellite> existingSatellites = satelliteRepository
-                .findAllById(catalogIds)
-                .stream()
+        // Load existing satellites for comparison
+        Map<Integer, Satellite> existingById = satelliteRepository.findAllById(catalogIds).stream()
                 .collect(Collectors.toMap(Satellite::getNoradCatId, Function.identity()));
 
-        List<Satellite> toSave = new ArrayList<>();
+        // 4. Categorize records
+        List<Satellite> toCreate = new ArrayList<>();
+        List<Satellite> toUpdate = new ArrayList<>();
 
-        for (OmmRecord ommRecord : records) {
-            if (!ommRecord.isValid()) {
-                skipped++;
-                continue;
-            }
+        for (OmmRecord ommRecord : validRecords) {
+            Satellite existing = existingById.get(ommRecord.noradCatId());
 
-            Satellite satellite = existingSatellites.get(ommRecord.noradCatId());
-
-            if (satellite == null) {
+            if (existing == null) {
                 // New satellite
-                satellite = new Satellite(ommRecord.noradCatId());
-                existingSatellites.put(ommRecord.noradCatId(), satellite);
-                created++;
+                toCreate.add(createSatellite(ommRecord));
+            } else if (hasChanged(existing, ommRecord)) {
+                // Existing satellite with changes
+                updateSatellite(existing, ommRecord);
+                toUpdate.add(existing);
             } else {
-                updated++;
-            }
-
-            // Update all fields from the record
-            updateSatellite(satellite, ommRecord);
-            toSave.add(satellite);
-            processed++;
-
-            // Batch save
-            if (toSave.size() >= batchSize) {
-                log.debug("Saving batch of {} satellites", toSave.size());
-                satelliteRepository.saveAll(toSave);
-                toSave.clear();
+                // Existing satellite without changes
+                skipped++;
             }
         }
 
-        // Save remaining
-        if (!toSave.isEmpty()) {
-            satelliteRepository.saveAll(toSave);
-            log.debug("Saving batch of {} satellites", toSave.size());
-        }
+        // Persist changes
+        int created = saveBatched(toCreate, "Created");
+        int updated = saveBatched(toUpdate, "Updated");
 
-        log.debug("Processing complete: {} processed, {} created, {} updated, {} skipped, {} deleted",
-                processed, created, updated, skipped, deleted);
-        return new ProcessingResult(processed, created, updated, skipped, deleted);
+        log.debug("Processing complete: {} created, {} updated, {} skipped, {} deleted",
+                created, updated, skipped, deleted);
+
+        return new ProcessingResult(created + updated, created, updated, skipped, deleted);
     }
 
     private void updateSatellite(Satellite sat, OmmRecord ommRecord) {
@@ -162,10 +153,32 @@ public class IngestionService {
         sat.setMeanAnomaly(ommRecord.meanAnomaly());
         sat.setBstar(ommRecord.bstar() != null ? ommRecord.bstar() : 0.0);
 
-        // Compute derived parameters (perigee, apogee, etc.)
+        // Compute derived parameters
         sat.computeDerivedParameters();
     }
 
-    private record ProcessingResult(int processed, int created, int updated, int skipped, int deleted) {
+    private Satellite createSatellite(OmmRecord ommRecord) {
+        Satellite satellite = new Satellite(ommRecord.noradCatId());
+        updateSatellite(satellite, ommRecord);
+        return satellite;
+    }
+
+    private boolean hasChanged(Satellite satellite, OmmRecord ommRecord) {
+        return satellite.getEpoch() == null || !satellite.getEpoch().equals(ommRecord.getEpochUtc());
+    }
+
+    private int saveBatched(List<Satellite> satellites, String operation) {
+        if (satellites.isEmpty()) {
+            return 0;
+        }
+
+        for (int i = 0; i < satellites.size(); i += batchSize) {
+            List<Satellite> batch = satellites.subList(i, Math.min(i + batchSize, satellites.size()));
+            satelliteRepository.saveAll(batch);
+            satelliteRepository.flush();
+            log.debug("{} batch of {} satellites", operation, batch.size());
+        }
+
+        return satellites.size();
     }
 }
