@@ -74,10 +74,11 @@ public class SpaceTrackClient {
         if (response.getStatusCode().isError()) {
             throw new IOException("Catalog fetch failed with status: " + response.getStatusCode());
         }
-        if (response.getBody() == null) {
+        List<OmmRecord> body = response.getBody();
+        if (body == null) {
             throw new IOException("Catalog fetch returned no data");
         }
-        log.debug("Fetched {} objects from Space-Track", response.getBody().size());
+        log.debug("Fetched {} objects from Space-Track", body.size());
         return response.getBody();
     }
 }

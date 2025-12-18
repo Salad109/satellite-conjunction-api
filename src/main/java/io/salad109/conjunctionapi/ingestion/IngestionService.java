@@ -70,9 +70,6 @@ public class IngestionService {
         }
     }
 
-    private record ProcessingResult(int processed, int created, int updated, int skipped, int deleted) {
-    }
-
     /**
      * Process OMM records - upsert satellites with their current TLE data.
      */
@@ -180,5 +177,8 @@ public class IngestionService {
         }
 
         return satellites.size();
+    }
+
+    private record ProcessingResult(int processed, int created, int updated, int skipped, int deleted) {
     }
 }

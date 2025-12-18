@@ -1,3 +1,5 @@
-todo
-handle failed ingestion logs
-proper api dto
+todo:
+calculate conjunctions
+
+optional:
+streaming ingestion
