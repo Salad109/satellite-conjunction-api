@@ -1,5 +1,6 @@
-package io.salad109.conjunctionapi.ingestion;
+package io.salad109.conjunctionapi.ingestion.internal;
 
+import io.salad109.conjunctionapi.ingestion.SyncResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,17 +20,17 @@ public class IngestionLogService {
      * Save an ingestion log entry in a new transaction. REQUIRES_NEW ensures log isn't rolled back if sync fails.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    protected void saveIngestionLog(OffsetDateTime startedAt, IngestionResult ingestionResult, boolean successful, String errorMessage) {
+    public void saveIngestionLog(SyncResult syncResult, String errorMessage) {
         ingestionLogRepository.save(new IngestionLog(
                 null,
-                startedAt,
+                syncResult.startedAt(),
                 OffsetDateTime.now(),
-                ingestionResult.processed(),
-                ingestionResult.created(),
-                ingestionResult.updated(),
-                ingestionResult.skipped(),
-                ingestionResult.deleted(),
-                successful,
+                syncResult.objectsProcessed(),
+                syncResult.objectsInserted(),
+                syncResult.objectsUpdated(),
+                syncResult.objectsSkipped(),
+                syncResult.objectsDeleted(),
+                syncResult.successful(),
                 errorMessage
         ));
     }

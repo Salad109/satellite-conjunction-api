@@ -1,5 +1,6 @@
 package io.salad109.conjunctionapi.ingestion;
 
+import io.salad109.conjunctionapi.ingestion.internal.IngestionLogService;
 import io.salad109.conjunctionapi.satellite.Satellite;
 import io.salad109.conjunctionapi.satellite.SatelliteRepository;
 import io.salad109.conjunctionapi.spacetrack.OmmRecord;
@@ -44,30 +45,35 @@ public class IngestionService {
      */
     @Scheduled(cron = "${ingestion.schedule.cron:0 21 */6 * * *}")
     @Transactional
-    public IngestionResult sync() throws IOException {
+    public SyncResult sync() {
         log.info("Starting catalog sync...");
         long startTime = System.currentTimeMillis();
         OffsetDateTime startedAt = OffsetDateTime.now();
 
         try {
             List<OmmRecord> records = spaceTrackClient.fetchCatalog();
-            IngestionResult result = processRecords(records);
-            ingestionLogService.saveIngestionLog(startedAt, result, true, null);
+            ProcessingResult processingResult = processRecords(records);
+            SyncResult syncResult = new SyncResult(startedAt, processingResult.processed(), processingResult.created(), processingResult.updated(), processingResult.skipped(), processingResult.deleted(), true);
+            ingestionLogService.saveIngestionLog(syncResult, null);
 
             log.info("Sync completed in {}ms. {} processed, {} created, {} updated, {} skipped, {} deleted",
-                    System.currentTimeMillis() - startTime, result.processed(), result.created(), result.updated(), result.skipped(), result.deleted());
+                    System.currentTimeMillis() - startTime, processingResult.processed(), processingResult.created(), processingResult.updated(), processingResult.skipped(), processingResult.deleted());
 
-            return result;
-        } catch (Exception e) {
-            ingestionLogService.saveIngestionLog(startedAt, new IngestionResult(0, 0, 0, 0, 0), false, e.getMessage());
-            throw new FailedSyncException(e);
+            return syncResult;
+        } catch (IOException e) {
+            SyncResult failedSyncResult = SyncResult.failed(startedAt);
+            ingestionLogService.saveIngestionLog(failedSyncResult, e.getMessage());
+
+            log.error("Failed synchronizing with Space-Track API", e);
+
+            return failedSyncResult;
         }
     }
 
     /**
      * Process OMM records - upsert satellites with their current TLE data.
      */
-    private IngestionResult processRecords(List<OmmRecord> records) {
+    private ProcessingResult processRecords(List<OmmRecord> records) {
         log.debug("Processing {} records...", records.size());
         int processed = 0;
         int created = 0;
@@ -131,7 +137,7 @@ public class IngestionService {
 
         log.debug("Processing complete: {} processed, {} created, {} updated, {} skipped, {} deleted",
                 processed, created, updated, skipped, deleted);
-        return new IngestionResult(processed, created, updated, skipped, deleted);
+        return new ProcessingResult(processed, created, updated, skipped, deleted);
     }
 
     private void updateSatellite(Satellite sat, OmmRecord ommRecord) {
@@ -158,5 +164,8 @@ public class IngestionService {
 
         // Compute derived parameters (perigee, apogee, etc.)
         sat.computeDerivedParameters();
+    }
+
+    private record ProcessingResult(int processed, int created, int updated, int skipped, int deleted) {
     }
 }

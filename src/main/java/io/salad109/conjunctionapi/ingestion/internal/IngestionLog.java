@@ -1,4 +1,4 @@
-package io.salad109.conjunctionapi.ingestion;
+package io.salad109.conjunctionapi.ingestion.internal;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
