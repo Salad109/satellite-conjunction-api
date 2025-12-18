@@ -1,4 +1,4 @@
-package io.salad109.conjunctionapi.ingestion;
+package io.salad109.conjunctionapi.spacetrack;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;

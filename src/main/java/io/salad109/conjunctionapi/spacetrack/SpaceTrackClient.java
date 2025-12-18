@@ -1,4 +1,4 @@
-package io.salad109.conjunctionapi.ingestion;
+package io.salad109.conjunctionapi.spacetrack;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

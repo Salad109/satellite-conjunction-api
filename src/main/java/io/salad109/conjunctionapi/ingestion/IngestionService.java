@@ -2,6 +2,8 @@ package io.salad109.conjunctionapi.ingestion;
 
 import io.salad109.conjunctionapi.satellite.Satellite;
 import io.salad109.conjunctionapi.satellite.SatelliteRepository;
+import io.salad109.conjunctionapi.spacetrack.OmmRecord;
+import io.salad109.conjunctionapi.spacetrack.SpaceTrackClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

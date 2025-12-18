@@ -44,5 +44,5 @@ public class IngestionLog {
     private boolean successful;
 
     @Column(name = "error_message")
-    String errorMessage;
+    private String errorMessage;
 }
