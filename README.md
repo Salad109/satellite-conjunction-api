@@ -1,6 +1,3 @@
-todo:
-save only the closest conjunction per object pair
-
 ## Conjunction Candidate Reduction
 
 | Strategy                        | Unique Pairs | % of Original |

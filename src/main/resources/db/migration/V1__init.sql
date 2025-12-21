@@ -40,7 +40,8 @@ CREATE TABLE conjunction
     miss_distance_km       DOUBLE PRECISION         NOT NULL,
     tca                    TIMESTAMP WITH TIME ZONE NOT NULL,
 
-    CONSTRAINT objects_ordered CHECK (object1_norad_id < object2_norad_id)
+    CONSTRAINT objects_ordered CHECK (object1_norad_id < object2_norad_id),
+    UNIQUE (object1_norad_id, object2_norad_id)
 );
 
 CREATE INDEX idx_conjunction_tca ON conjunction (tca);

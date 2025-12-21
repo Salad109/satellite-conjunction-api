@@ -10,12 +10,14 @@ import org.orekit.utils.PVCoordinates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
@@ -35,79 +37,88 @@ public class ConjunctionService {
         this.conjunctionRepository = conjunctionRepository;
     }
 
+    @Transactional
     public List<Conjunction> findConjunctions() {
         long startMs = System.currentTimeMillis();
-        log.info("Starting conjunction screening (single 60s propagation)...");
+        log.info("Starting conjunction screening...");
 
         List<Satellite> satellites = satelliteRepository.findAll();
-        log.info("Loaded {} satellites from catalog", satellites.size());
+        List<SatellitePair> pairs = findPotentialCollisionPairs(satellites);
+        Map<Integer, TLEPropagator> propagators = buildPropagators(satellites);
 
-        List<SatellitePair> potentialCollisionPairs = findPotentialCollisionPairs(satellites);
-        log.info("Found {} potential collision pairs after filtering", potentialCollisionPairs.size());
+        OffsetDateTime targetTime = OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(60);
+        Map<Integer, PVCoordinates> positions = propagateAll(propagators, targetTime);
+        List<Conjunction> conjunctions = findCloseApproaches(pairs, positions, targetTime);
 
-        // Build propagators for all satellites
-        log.info("Building propagators...");
+        saveClosestApproaches(conjunctions);
+
+        log.info("Conjunction screening completed in {}ms. Found {} conjunctions", System.currentTimeMillis() - startMs, conjunctions.size());
+        return conjunctions;
+    }
+
+    private Map<Integer, TLEPropagator> buildPropagators(List<Satellite> satellites) {
+        long startMs = System.currentTimeMillis();
         Map<Integer, TLEPropagator> propagators = new HashMap<>();
-        int skippedInvalid = 0;
+        int skipped = 0;
+
         for (Satellite sat : satellites) {
             try {
                 if (sat.getEccentricity() != null && sat.getEccentricity() >= 1.0) {
-                    skippedInvalid++;
+                    skipped++;
                     continue;
                 }
-
                 TLE tle = new TLE(sat.getTleLine1(), sat.getTleLine2());
                 propagators.put(sat.getNoradCatId(), TLEPropagator.selectExtrapolator(tle));
             } catch (Exception e) {
-                skippedInvalid++;
+                skipped++;
             }
         }
-        log.info("Built {} propagators ({} skipped)", propagators.size(), skippedInvalid);
 
-        // Propagate 60 seconds into the future
-        OffsetDateTime targetTime = OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(60);
+        log.debug("Built {} propagators ({} skipped) in {}ms", propagators.size(), skipped, System.currentTimeMillis() - startMs);
+        return propagators;
+    }
+
+    private Map<Integer, PVCoordinates> propagateAll(Map<Integer, TLEPropagator> propagators, OffsetDateTime targetTime) {
+        long startMs = System.currentTimeMillis();
         AbsoluteDate targetDate = toAbsoluteDate(targetTime);
+        AtomicInteger errors = new AtomicInteger();
 
-        log.info("Checking {} pairs...", potentialCollisionPairs.size());
-
-        List<Conjunction> conjunctions = potentialCollisionPairs.parallelStream()
-                .mapMulti((SatellitePair pair, Consumer<Conjunction> consumer) -> {
-                    TLEPropagator propA = propagators.get(pair.a().getNoradCatId());
-                    TLEPropagator propB = propagators.get(pair.b().getNoradCatId());
-
+        Map<Integer, PVCoordinates> positions = propagators.entrySet().parallelStream()
+                .<Map.Entry<Integer, PVCoordinates>>mapMulti((entry, consumer) -> {
                     try {
-                        PVCoordinates pvA = propagate(propA, targetDate);
-                        PVCoordinates pvB = propagate(propB, targetDate);
+                        PVCoordinates pv = entry.getValue().getPVCoordinates(targetDate, entry.getValue().getFrame());
+                        consumer.accept(Map.entry(entry.getKey(), pv));
+                    } catch (Exception e) {
+                        errors.getAndIncrement();
+                    }
+                })
+                .collect(HashMap::new,
+                        (map, entry) -> map.put(entry.getKey(), entry.getValue()),
+                        HashMap::putAll);
 
-                        double distance = calculateDistance(pvA, pvB);
+        log.debug("Propagated {} satellites in {}ms ({} failed)", positions.size(), System.currentTimeMillis() - startMs, errors);
+        return positions;
+    }
 
-                        if (distance <= CONJUNCTION_THRESHOLD_KM) {
-                            consumer.accept(new Conjunction(
-                                    null,
-                                    pair.a().getNoradCatId(),
-                                    pair.b().getNoradCatId(),
-                                    distance,
-                                    targetTime
-                            ));
-                        }
-                    } catch (RuntimeException e) {
-                        // Skip pairs that fail to propagate
+    private List<Conjunction> findCloseApproaches(List<SatellitePair> pairs, Map<Integer, PVCoordinates> positions, OffsetDateTime time) {
+        long startMs = System.currentTimeMillis();
+
+        List<Conjunction> conjunctions = pairs.parallelStream()
+                .mapMulti((SatellitePair pair, Consumer<Conjunction> consumer) -> {
+                    PVCoordinates pvA = positions.get(pair.a().getNoradCatId());
+                    PVCoordinates pvB = positions.get(pair.b().getNoradCatId());
+
+                    if (pvA == null || pvB == null) return;
+
+                    double distance = calculateDistance(pvA, pvB);
+                    if (distance <= CONJUNCTION_THRESHOLD_KM) {
+                        consumer.accept(new Conjunction(null, pair.a().getNoradCatId(), pair.b().getNoradCatId(), distance, time));
                     }
                 })
                 .toList();
 
-        long totalDurationMs = System.currentTimeMillis() - startMs;
-
-        log.info("Checked {} pairs in {}ms, found {} conjunctions within {}km",
-                potentialCollisionPairs.size(), totalDurationMs, conjunctions.size(), CONJUNCTION_THRESHOLD_KM);
-
-        conjunctionRepository.saveAll(conjunctions);
-
+        log.debug("Checked {} pairs in {}ms, found {} conjunctions", pairs.size(), System.currentTimeMillis() - startMs, conjunctions.size());
         return conjunctions;
-    }
-
-    private PVCoordinates propagate(TLEPropagator propagator, AbsoluteDate date) {
-        return propagator.getPVCoordinates(date, propagator.getFrame());
     }
 
     private double calculateDistance(PVCoordinates pvA, PVCoordinates pvB) {
@@ -145,6 +156,21 @@ public class ConjunctionService {
                     }
                 })
                 .toList();
+    }
+
+    public void saveClosestApproaches(List<Conjunction> conjunctions) {
+        long startMs = System.currentTimeMillis();
+
+        for (Conjunction c : conjunctions) {
+            conjunctionRepository.upsertIfCloser(
+                    c.getObject1NoradId(),
+                    c.getObject2NoradId(),
+                    c.getMissDistanceKm(),
+                    c.getTca()
+            );
+        }
+
+        log.debug("Upserted {} conjunctions in {}ms", conjunctions.size(), System.currentTimeMillis() - startMs);
     }
 
     private record SatellitePair(Satellite a, Satellite b) {
