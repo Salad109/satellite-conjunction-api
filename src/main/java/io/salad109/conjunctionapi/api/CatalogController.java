@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/catalog")
 public class CatalogController {
 
     private final IngestionService ingestionService;
@@ -31,7 +31,7 @@ public class CatalogController {
     /**
      * Trigger a full catalog sync from Space-Track.
      */
-    @PostMapping("/catalog/sync")
+    @PostMapping("/sync")
     public ResponseEntity<SyncResult> sync() {
         var result = ingestionService.sync();
         return result.successful() ?
@@ -39,7 +39,7 @@ public class CatalogController {
                 ResponseEntity.status(500).body(result);
     }
 
-    @GetMapping("/catalog/sync/history")
+    @GetMapping("/sync/history")
     public ResponseEntity<Page<SyncResult>> getSyncHistory(Pageable pageable) {
         Page<SyncResult> history = ingestionLogService.getSyncHistory(pageable);
         return ResponseEntity.ok(history);
@@ -48,7 +48,7 @@ public class CatalogController {
     /**
      * Get catalog statistics.
      */
-    @GetMapping("/catalog/stats")
+    @GetMapping("/stats")
     public ResponseEntity<?> getStats() {
         long totalObjects = satelliteRepository.count();
         return ResponseEntity.ok(Map.of(
@@ -60,7 +60,7 @@ public class CatalogController {
     /**
      * Get a specific satellite by NORAD ID.
      */
-    @GetMapping("/catalog/{noradId}")
+    @GetMapping("/{noradId}")
     public ResponseEntity<?> getSatellite(@PathVariable Integer noradId) {
         Optional<Satellite> satelliteOpt = satelliteRepository.findById(noradId);
         if (satelliteOpt.isEmpty())

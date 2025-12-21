@@ -1,5 +1,7 @@
-package io.salad109.conjunctionapi.satellite;
+package io.salad109.conjunctionapi.conjunction;
 
+import io.salad109.conjunctionapi.satellite.Satellite;
+import io.salad109.conjunctionapi.satellite.SatelliteRepository;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

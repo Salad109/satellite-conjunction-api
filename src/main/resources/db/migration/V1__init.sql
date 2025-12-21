@@ -31,23 +31,20 @@ CREATE TABLE satellite
 CREATE INDEX idx_satellite_orbital_shell ON satellite (perigee_km, apogee_km);
 CREATE INDEX idx_satellite_inclination ON satellite (inclination);
 
--- Conjunction candidates table
-CREATE TABLE conjunction_candidate
+-- Conjunctions table
+CREATE TABLE conjunction
 (
-    id                     BIGSERIAL PRIMARY KEY,
+    id                     SERIAL PRIMARY KEY,
     object1_norad_id       INTEGER                  NOT NULL REFERENCES satellite (norad_cat_id),
     object2_norad_id       INTEGER                  NOT NULL REFERENCES satellite (norad_cat_id),
-    tca                    TIMESTAMP WITH TIME ZONE NOT NULL,
     miss_distance_km       DOUBLE PRECISION         NOT NULL,
-    relative_velocity_km_s DOUBLE PRECISION,
-    collision_probability  DOUBLE PRECISION,
-    screening_timestamp    TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    tca                    TIMESTAMP WITH TIME ZONE NOT NULL,
 
     CONSTRAINT objects_ordered CHECK (object1_norad_id < object2_norad_id)
 );
 
-CREATE INDEX idx_conjunction_tca ON conjunction_candidate (tca);
-CREATE INDEX idx_conjunction_distance ON conjunction_candidate (miss_distance_km);
+CREATE INDEX idx_conjunction_tca ON conjunction (tca);
+CREATE INDEX idx_conjunction_distance ON conjunction (miss_distance_km);
 
 -- Ingestion log for tracking sync status
 CREATE TABLE ingestion_log

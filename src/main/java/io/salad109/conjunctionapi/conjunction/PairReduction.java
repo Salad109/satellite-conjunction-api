@@ -1,4 +1,6 @@
-package io.salad109.conjunctionapi.satellite;
+package io.salad109.conjunctionapi.conjunction;
+
+import io.salad109.conjunctionapi.satellite.Satellite;
 
 public class PairReduction {
 
@@ -11,9 +13,10 @@ public class PairReduction {
      */
     public static boolean canCollide(Satellite a, Satellite b, double toleranceKm) {
         // Apply filters starting with computationally cheapest
-        if (!altitudeShellsOverlap(a, b, toleranceKm)) return false;
-        if (isDebrisOnDebris(a, b)) return false;
-        return orbitalPlanesIntersect(a, b, toleranceKm);
+        return altitudeShellsOverlap(a, b, toleranceKm) &&
+                neitherAreDebris(a, b) &&
+                orbitalPlanesIntersect(a, b, toleranceKm) &&
+                areNotDocked(a, b);
     }
 
     private static boolean altitudeShellsOverlap(Satellite a, Satellite b, double toleranceKm) {
@@ -24,8 +27,8 @@ public class PairReduction {
         return !(apogeeA + toleranceKm < perigeeB || apogeeB + toleranceKm < perigeeA);
     }
 
-    private static boolean isDebrisOnDebris(Satellite a, Satellite b) {
-        return "DEBRIS".equals(a.getObjectType()) && "DEBRIS".equals(b.getObjectType());
+    private static boolean neitherAreDebris(Satellite a, Satellite b) {
+        return !"DEBRIS".equals(a.getObjectType()) && !"DEBRIS".equals(b.getObjectType());
     }
 
     private static boolean orbitalPlanesIntersect(Satellite a, Satellite b, double toleranceKm) {
@@ -118,5 +121,15 @@ public class PairReduction {
         while (angle > Math.PI) angle -= 2 * Math.PI;
         while (angle < -Math.PI) angle += 2 * Math.PI;
         return angle;
+    }
+
+    private static boolean areNotDocked(Satellite a, Satellite b) {
+        return !(a.getEpoch() != null && a.getEpoch().equals(b.getEpoch()) &&
+                a.getMeanMotion() != null && a.getMeanMotion().equals(b.getMeanMotion()) &&
+                a.getEccentricity() != null && a.getEccentricity().equals(b.getEccentricity()) &&
+                a.getInclination() != null && a.getInclination().equals(b.getInclination()) &&
+                a.getRaan() != null && a.getRaan().equals(b.getRaan()) &&
+                a.getArgPerigee() != null && a.getArgPerigee().equals(b.getArgPerigee()) &&
+                a.getMeanAnomaly() != null && a.getMeanAnomaly().equals(b.getMeanAnomaly()));
     }
 }
