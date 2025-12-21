@@ -1,5 +1,5 @@
 todo:
-calculate conjunctions
+save only the closest conjunction per object pair
 
 ## Conjunction Candidate Reduction
 
