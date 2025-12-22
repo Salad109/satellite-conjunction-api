@@ -26,7 +26,8 @@ import java.util.stream.IntStream;
 public class ConjunctionService {
 
     private static final Logger log = LoggerFactory.getLogger(ConjunctionService.class);
-
+    private final SatelliteRepository satelliteRepository;
+    private final ConjunctionRepository conjunctionRepository;
     @Value("${conjunction.tolerance-km:10.0}")
     private double toleranceKm;
     @Value("${conjunction.collision-threshold-km:5.0}")
@@ -35,9 +36,6 @@ public class ConjunctionService {
     private int lookaheadHours;
     @Value("${conjunction.step-seconds:60}")
     private int stepSeconds;
-
-    private final SatelliteRepository satelliteRepository;
-    private final ConjunctionRepository conjunctionRepository;
 
     public ConjunctionService(SatelliteRepository satelliteRepository, ConjunctionRepository conjunctionRepository) {
         this.satelliteRepository = satelliteRepository;

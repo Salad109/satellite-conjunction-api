@@ -134,6 +134,15 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <configuration>
+                    <url>jdbc:postgresql://localhost:5432/conjunction_db</url>
+                    <user>conjunction_user</user>
+                    <password>conjunction_dev_password</password>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

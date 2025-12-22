@@ -22,26 +22,26 @@ public class ConjunctionRepositoryImpl implements ConjunctionRepositoryCustom {
         }
 
         String sql = """
-                INSERT INTO conjunction (object1_norad_id, object2_norad_id, miss_distance_km, tca, relative_velocity_m_s)
-                VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT (object1_norad_id, object2_norad_id)
-            DO UPDATE SET
-                miss_distance_km = CASE
-                    WHEN EXCLUDED.miss_distance_km < conjunction.miss_distance_km
-                    THEN EXCLUDED.miss_distance_km
-                    ELSE conjunction.miss_distance_km
-                END,
-                tca = CASE
-                    WHEN EXCLUDED.miss_distance_km < conjunction.miss_distance_km
-                    THEN EXCLUDED.tca
-                    ELSE conjunction.tca
-                    END,
-                    relative_velocity_m_s = CASE
+                    INSERT INTO conjunction (object1_norad_id, object2_norad_id, miss_distance_km, tca, relative_velocity_m_s)
+                    VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (object1_norad_id, object2_norad_id)
+                DO UPDATE SET
+                    miss_distance_km = CASE
                         WHEN EXCLUDED.miss_distance_km < conjunction.miss_distance_km
-                        THEN EXCLUDED.relative_velocity_m_s
-                        ELSE conjunction.relative_velocity_m_s
-                END
-            """;
+                        THEN EXCLUDED.miss_distance_km
+                        ELSE conjunction.miss_distance_km
+                    END,
+                    tca = CASE
+                        WHEN EXCLUDED.miss_distance_km < conjunction.miss_distance_km
+                        THEN EXCLUDED.tca
+                        ELSE conjunction.tca
+                        END,
+                        relative_velocity_m_s = CASE
+                            WHEN EXCLUDED.miss_distance_km < conjunction.miss_distance_km
+                            THEN EXCLUDED.relative_velocity_m_s
+                            ELSE conjunction.relative_velocity_m_s
+                    END
+                """;
 
         jdbcTemplate.batchUpdate(sql, conjunctions, conjunctions.size(),
                 (ps, conjunction) -> {

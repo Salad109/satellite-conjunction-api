@@ -34,11 +34,11 @@ CREATE INDEX idx_satellite_inclination ON satellite (inclination);
 -- Conjunctions table
 CREATE TABLE conjunction
 (
-    id                     SERIAL PRIMARY KEY,
-    object1_norad_id       INTEGER                  NOT NULL REFERENCES satellite (norad_cat_id),
-    object2_norad_id       INTEGER                  NOT NULL REFERENCES satellite (norad_cat_id),
-    miss_distance_km       DOUBLE PRECISION         NOT NULL,
-    tca                    TIMESTAMP WITH TIME ZONE NOT NULL,
+    id               SERIAL PRIMARY KEY,
+    object1_norad_id INTEGER                  NOT NULL REFERENCES satellite (norad_cat_id),
+    object2_norad_id INTEGER                  NOT NULL REFERENCES satellite (norad_cat_id),
+    miss_distance_km DOUBLE PRECISION         NOT NULL,
+    tca              TIMESTAMP WITH TIME ZONE NOT NULL,
 
     CONSTRAINT objects_ordered CHECK (object1_norad_id < object2_norad_id),
     UNIQUE (object1_norad_id, object2_norad_id)
