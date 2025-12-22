@@ -9,6 +9,7 @@ import org.orekit.time.TimeScalesFactory;
 import org.orekit.utils.PVCoordinates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,8 +27,14 @@ public class ConjunctionService {
 
     private static final Logger log = LoggerFactory.getLogger(ConjunctionService.class);
 
-    private static final double TOLERANCE_KM = 10.0;
-    private static final double CONJUNCTION_THRESHOLD_KM = 5.0;
+    @Value("${conjunction.tolerance-km:10.0}")
+    private double toleranceKm;
+    @Value("${conjunction.collision-threshold-km:5.0}")
+    private double conjunctionThresholdKm;
+    @Value("${conjunction.lookahead-hours:1}")
+    private int lookaheadHours;
+    @Value("${conjunction.step-seconds:60}")
+    private int stepSeconds;
 
     private final SatelliteRepository satelliteRepository;
     private final ConjunctionRepository conjunctionRepository;
@@ -38,7 +45,7 @@ public class ConjunctionService {
     }
 
     @Transactional
-    public List<Conjunction> findConjunctions() {
+    public void findConjunctions() {
         long startMs = System.currentTimeMillis();
         log.info("Starting conjunction screening...");
 
@@ -46,15 +53,16 @@ public class ConjunctionService {
         log.debug("Loaded {} satellites from database in {}ms", satellites.size(), System.currentTimeMillis() - startMs);
         List<SatellitePair> pairs = findPotentialCollisionPairs(satellites);
         Map<Integer, TLEPropagator> propagators = buildPropagators(satellites);
+        OffsetDateTime startTime = OffsetDateTime.now(ZoneOffset.UTC);
 
-        OffsetDateTime targetTime = OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(60);
-        Map<Integer, PVCoordinates> positions = propagateAll(propagators, targetTime);
-        List<Conjunction> conjunctions = findCloseApproaches(pairs, positions, targetTime);
+        for (int offsetSeconds = 0; offsetSeconds <= lookaheadHours * 3600; offsetSeconds += stepSeconds) {
+            OffsetDateTime targetTime = startTime.plusSeconds(offsetSeconds);
+            Map<Integer, PVCoordinates> positions = propagateAll(propagators, targetTime);
+            List<Conjunction> stepConjunctions = findCloseApproaches(pairs, positions, targetTime);
+            saveClosestApproaches(stepConjunctions);
+        }
 
-        saveClosestApproaches(conjunctions);
-
-        log.info("Conjunction screening completed in {}ms. Found {} conjunctions", System.currentTimeMillis() - startMs, conjunctions.size());
-        return conjunctions;
+        log.info("Conjunction screening completed in {}ms", System.currentTimeMillis() - startMs);
     }
 
     private Map<Integer, TLEPropagator> buildPropagators(List<Satellite> satellites) {
@@ -112,8 +120,9 @@ public class ConjunctionService {
                     if (pvA == null || pvB == null) return;
 
                     double distance = calculateDistance(pvA, pvB);
-                    if (distance <= CONJUNCTION_THRESHOLD_KM) {
-                        consumer.accept(new Conjunction(null, pair.a().getNoradCatId(), pair.b().getNoradCatId(), distance, time));
+                    if (distance <= conjunctionThresholdKm) {
+                        double relativeVelocityMS = calculateRelativeVelocity(pvA, pvB);
+                        consumer.accept(new Conjunction(null, pair.a().getNoradCatId(), pair.b().getNoradCatId(), distance, time, relativeVelocityMS));
                     }
                 })
                 .toList();
@@ -127,6 +136,13 @@ public class ConjunctionService {
         double dy = (pvA.getPosition().getY() - pvB.getPosition().getY()) / 1000.0;
         double dz = (pvA.getPosition().getZ() - pvB.getPosition().getZ()) / 1000.0;
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    private double calculateRelativeVelocity(PVCoordinates pvA, PVCoordinates pvB) {
+        double dvx = pvA.getVelocity().getX() - pvB.getVelocity().getX();
+        double dvy = pvA.getVelocity().getY() - pvB.getVelocity().getY();
+        double dvz = pvA.getVelocity().getZ() - pvB.getVelocity().getZ();
+        return Math.sqrt(dvx * dvx + dvy * dvy + dvz * dvz);
     }
 
     private AbsoluteDate toAbsoluteDate(OffsetDateTime dateTime) {
@@ -152,7 +168,7 @@ public class ConjunctionService {
                     Satellite a = satellites.get(i);
                     for (int j = i + 1; j < satelliteCount; j++) {
                         Satellite b = satellites.get(j);
-                        if (PairReduction.canCollide(a, b, TOLERANCE_KM)) {
+                        if (PairReduction.canCollide(a, b, toleranceKm)) {
                             consumer.accept(new SatellitePair(a, b));
                         }
                     }

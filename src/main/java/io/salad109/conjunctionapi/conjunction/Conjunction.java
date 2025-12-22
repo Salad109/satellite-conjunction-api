@@ -30,4 +30,7 @@ public class Conjunction {
 
     @Column(name = "tca")
     private OffsetDateTime tca;
+
+    @Column(name = "relative_velocity_m_s")
+    private double relativeVelocityMS;
 }

@@ -22,8 +22,8 @@ public class ConjunctionRepositoryImpl implements ConjunctionRepositoryCustom {
         }
 
         String sql = """
-            INSERT INTO conjunction (object1_norad_id, object2_norad_id, miss_distance_km, tca)
-            VALUES (?, ?, ?, ?)
+                INSERT INTO conjunction (object1_norad_id, object2_norad_id, miss_distance_km, tca, relative_velocity_m_s)
+                VALUES (?, ?, ?, ?, ?)
             ON CONFLICT (object1_norad_id, object2_norad_id)
             DO UPDATE SET
                 miss_distance_km = CASE
@@ -35,6 +35,11 @@ public class ConjunctionRepositoryImpl implements ConjunctionRepositoryCustom {
                     WHEN EXCLUDED.miss_distance_km < conjunction.miss_distance_km
                     THEN EXCLUDED.tca
                     ELSE conjunction.tca
+                    END,
+                    relative_velocity_m_s = CASE
+                        WHEN EXCLUDED.miss_distance_km < conjunction.miss_distance_km
+                        THEN EXCLUDED.relative_velocity_m_s
+                        ELSE conjunction.relative_velocity_m_s
                 END
             """;
 
@@ -44,6 +49,7 @@ public class ConjunctionRepositoryImpl implements ConjunctionRepositoryCustom {
                     ps.setInt(2, conjunction.getObject2NoradId());
                     ps.setDouble(3, conjunction.getMissDistanceKm());
                     ps.setTimestamp(4, Timestamp.from(conjunction.getTca().toInstant()));
+                    ps.setDouble(5, conjunction.getRelativeVelocityMS());
                 });
     }
 }

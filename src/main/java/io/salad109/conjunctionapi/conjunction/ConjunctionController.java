@@ -18,8 +18,8 @@ public class ConjunctionController {
     }
 
     @GetMapping("/scan")
-    public ResponseEntity<List<Conjunction>> scanForConjunctions() {
-        var conjunctions = conjunctionService.findConjunctions();
-        return ResponseEntity.ok(conjunctions);
+    public ResponseEntity<List<Void>> scanForConjunctions() {
+        conjunctionService.findConjunctions();
+        return ResponseEntity.ok().build();
     }
 }
