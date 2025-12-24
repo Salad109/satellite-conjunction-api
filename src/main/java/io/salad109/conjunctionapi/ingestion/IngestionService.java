@@ -1,12 +1,11 @@
 package io.salad109.conjunctionapi.ingestion;
 
 import io.salad109.conjunctionapi.satellite.Satellite;
-import io.salad109.conjunctionapi.satellite.SatelliteRepository;
+import io.salad109.conjunctionapi.satellite.SatelliteService;
 import io.salad109.conjunctionapi.spacetrack.OmmRecord;
 import io.salad109.conjunctionapi.spacetrack.SpaceTrackClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,8 +14,6 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 public class IngestionService {
@@ -24,17 +21,14 @@ public class IngestionService {
     private static final Logger log = LoggerFactory.getLogger(IngestionService.class);
 
     private final SpaceTrackClient spaceTrackClient;
-    private final SatelliteRepository satelliteRepository;
+    private final SatelliteService satelliteService;
     private final IngestionLogService ingestionLogService;
 
-    @Value("${ingestion.batch-size:1000}")
-    private int batchSize;
-
     public IngestionService(SpaceTrackClient spaceTrackClient,
-                            SatelliteRepository satelliteRepository,
+                            SatelliteService satelliteService,
                             IngestionLogService ingestionLogService) {
         this.spaceTrackClient = spaceTrackClient;
-        this.satelliteRepository = satelliteRepository;
+        this.satelliteService = satelliteService;
         this.ingestionLogService = ingestionLogService;
     }
 
@@ -88,14 +82,13 @@ public class IngestionService {
                 .toList();
 
         // Clean up removed satellites
-        int deleted = satelliteRepository.deleteSatellitesByNoradCatIdNotIn(catalogIds);
-        log.debug("Deleted {} satellites not present in the new catalog", deleted);
+        int deleted = satelliteService.deleteByCatalogIdsNotIn(catalogIds);
+        log.debug("Deleted {} satellites no longer in catalog", deleted);
 
         // Load existing satellites for comparison
-        Map<Integer, Satellite> existingById = satelliteRepository.findAllById(catalogIds).stream()
-                .collect(Collectors.toMap(Satellite::getNoradCatId, Function.identity()));
+        Map<Integer, Satellite> existingById = satelliteService.getByCatalogIds(catalogIds);
 
-        // 4. Categorize records
+        // Categorize records
         List<Satellite> toCreate = new ArrayList<>();
         List<Satellite> toUpdate = new ArrayList<>();
 
@@ -116,8 +109,10 @@ public class IngestionService {
         }
 
         // Persist changes
-        int created = saveBatched(toCreate, "Created");
-        int updated = saveBatched(toUpdate, "Updated");
+        int created = satelliteService.save(toCreate);
+        log.debug("Created {} new satellites", created);
+        int updated = satelliteService.save(toUpdate);
+        log.debug("Updated {} existing satellites", updated);
 
         log.debug("Processing complete: {} created, {} updated, {} skipped, {} deleted",
                 created, updated, skipped, deleted);
@@ -159,21 +154,6 @@ public class IngestionService {
 
     private boolean hasChanged(Satellite satellite, OmmRecord ommRecord) {
         return satellite.getEpoch() == null || !satellite.getEpoch().equals(ommRecord.getEpochUtc());
-    }
-
-    private int saveBatched(List<Satellite> satellites, String operation) {
-        if (satellites.isEmpty()) {
-            return 0;
-        }
-
-        for (int i = 0; i < satellites.size(); i += batchSize) {
-            List<Satellite> batch = satellites.subList(i, Math.min(i + batchSize, satellites.size()));
-            satelliteRepository.saveAll(batch);
-            satelliteRepository.flush();
-            log.debug("{} batch of {} satellites", operation, batch.size());
-        }
-
-        return satellites.size();
     }
 
     private record ProcessingResult(int created, int updated, int skipped, int deleted) {
