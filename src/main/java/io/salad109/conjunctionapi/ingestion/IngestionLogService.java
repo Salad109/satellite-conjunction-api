@@ -32,6 +32,22 @@ public class IngestionLogService {
         ));
     }
 
+    @Transactional(readOnly = true)
+    public SyncResult getLatest() {
+        IngestionLog log = ingestionLogRepository.findTopByOrderByStartedAtDesc();
+        if (log == null)
+            return null;
+        else
+            return new SyncResult(
+                    log.getStartedAt(),
+                    log.getObjectsInserted(),
+                    log.getObjectsUpdated(),
+                    log.getObjectsSkipped(),
+                    log.getObjectsDeleted(),
+                    log.isSuccessful()
+            );
+    }
+
     /**
      * Save an ingestion log entry in a new transaction. REQUIRES_NEW ensures log isn't rolled back if sync fails.
      */

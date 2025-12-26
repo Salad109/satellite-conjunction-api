@@ -26,4 +26,9 @@ public class IngestionLogController {
             @PageableDefault(sort = "startedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(ingestionLogService.getSyncHistory(pageable));
     }
+
+    @GetMapping("/latest")
+    public ResponseEntity<SyncResult> getLatestSync() {
+        return ResponseEntity.ok(ingestionLogService.getLatest());
+    }
 }
