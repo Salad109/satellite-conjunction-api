@@ -8,5 +8,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface IngestionLogRepository extends JpaRepository<IngestionLog, Integer> {
     Page<IngestionLog> findAllByOrderByStartedAtDesc(Pageable pageable);
+
     IngestionLog findTopByOrderByStartedAtDesc();
 }

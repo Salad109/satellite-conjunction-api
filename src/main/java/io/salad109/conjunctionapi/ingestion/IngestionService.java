@@ -36,7 +36,7 @@ public class IngestionService {
      * Perform a full catalog sync from Space-Track.
      */
     @Transactional
-    public SyncResult sync() {
+    public void sync() {
         log.info("Starting catalog sync...");
         long startTime = System.currentTimeMillis();
         OffsetDateTime startedAt = OffsetDateTime.now();
@@ -49,15 +49,11 @@ public class IngestionService {
 
             log.info("Sync completed in {}ms. {} created, {} updated, {} skipped, {} deleted",
                     System.currentTimeMillis() - startTime, processingResult.created(), processingResult.updated(), processingResult.skipped(), processingResult.deleted());
-
-            return syncResult;
         } catch (IOException e) {
             SyncResult failedSyncResult = SyncResult.failed(startedAt);
             ingestionLogService.saveIngestionLog(failedSyncResult, e.getMessage());
 
             log.error("Failed synchronizing with Space-Track API", e);
-
-            return failedSyncResult;
         }
     }
 

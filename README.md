@@ -1,7 +1,7 @@
 # Conjunction API
 
-Satellite conjunction detection system that monitors orbital objects for potential collisions. Ingests data from 
-[Space-Track.org](https://www.space-track.org), propagates orbits using Orekit, and identifies close approaches 
+Satellite conjunction detection system that monitors orbital objects for potential collisions. Ingests data from
+[Space-Track.org](https://www.space-track.org), propagates orbits using Orekit, and identifies close approaches
 between satellites.
 
 ## Tech Stack
