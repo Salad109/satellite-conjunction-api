@@ -10,6 +10,7 @@ between satellites.
 - Spring Boot 4 / Spring Modulith
 - Orekit 13.1.2
 - PostgreSQL / Flyway
+- HTMX / Thymeleaf
 
 ## Architecture
 

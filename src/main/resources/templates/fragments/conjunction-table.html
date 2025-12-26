@@ -1,0 +1,75 @@
+<div class="mt-6" id="results">
+    <table class="text-sm border border-gray-300">
+        <thead class="bg-gray-50 text-gray-700 text-xs uppercase">
+        <tr>
+            <th class="px-4 py-2 border-b cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+                hx-target="#results"
+                rowspan="2"
+                th:hx-get="'/ui/conjunctions?sort=missDistanceKm,' + (${sortField == 'missDistanceKm' && sortDir == 'asc'} ? 'desc' : 'asc')">
+                Miss Distance (km)
+                <span th:if="${sortField == 'missDistanceKm' && sortDir == 'asc'}">&#9650;</span>
+                <span th:if="${sortField == 'missDistanceKm' && sortDir == 'desc'}">&#9660;</span>
+            </th>
+            <th class="px-4 py-2 border-b cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+                hx-target="#results"
+                rowspan="2"
+                th:hx-get="'/ui/conjunctions?sort=tca,' + (${sortField == 'tca' && sortDir == 'asc'} ? 'desc' : 'asc')">
+                TCA
+                <span th:if="${sortField == 'tca' && sortDir == 'asc'}">&#9650;</span>
+                <span th:if="${sortField == 'tca' && sortDir == 'desc'}">&#9660;</span>
+            </th>
+            <th class="px-4 py-2 border-b cursor-pointer hover:bg-gray-100 whitespace-nowrap"
+                hx-target="#results"
+                rowspan="2"
+                th:hx-get="'/ui/conjunctions?sort=relativeVelocityMS,' + (${sortField == 'relativeVelocityMS' && sortDir == 'asc'} ? 'desc' : 'asc')">
+                Rel. Velocity (m/s)
+                <span th:if="${sortField == 'relativeVelocityMS' && sortDir == 'asc'}">&#9650;</span>
+                <span th:if="${sortField == 'relativeVelocityMS' && sortDir == 'desc'}">&#9660;</span>
+            </th>
+            <th class="px-4 py-2 border-b border-l text-center" colspan="3">Object 1</th>
+            <th class="px-4 py-2 border-b border-l text-center" colspan="3">Object 2</th>
+        </tr>
+        <tr>
+            <th class="px-4 py-2 border-b border-l">NORAD ID</th>
+            <th class="px-4 py-2 border-b">Name</th>
+            <th class="px-4 py-2 border-b">Type</th>
+            <th class="px-4 py-2 border-b border-l">NORAD ID</th>
+            <th class="px-4 py-2 border-b">Name</th>
+            <th class="px-4 py-2 border-b">Type</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:class="${iter.odd} ? 'bg-white' : 'bg-gray-50'" th:each="c, iter : ${page.content}">
+            <td class="px-4 py-2 border-b font-mono"
+                th:text="${#numbers.formatDecimal(c.missDistanceKm, 1, 3)}"></td>
+            <td class="px-4 py-2 border-b font-mono" th:text="${#temporals.format(c.tca, 'yyyy-MM-dd HH:mm:ss')}"></td>
+            <td class="px-4 py-2 border-b font-mono"
+                th:text="${#numbers.formatDecimal(c.relativeVelocityMS, 1, 1)}"></td>
+            <td class="px-4 py-2 border-b border-l font-mono" th:text="${c.object1NoradId}"></td>
+            <td class="px-4 py-2 border-b" th:text="${c.object1Name}"></td>
+            <td class="px-4 py-2 border-b" th:text="${c.object1Type}"></td>
+            <td class="px-4 py-2 border-b border-l font-mono" th:text="${c.object2NoradId}"></td>
+            <td class="px-4 py-2 border-b" th:text="${c.object2Name}"></td>
+            <td class="px-4 py-2 border-b" th:text="${c.object2Type}"></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="flex items-center gap-4 mt-4">
+        <button class="border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-sm"
+                hx-target="#results"
+                th:hx-get="'/ui/conjunctions?page=' + ${page.number - 1} + '&amp;sort=' + ${sortField} + ',' + ${sortDir}"
+                th:if="${page.hasPrevious()}">
+            Previous
+        </button>
+
+        <span class="text-sm text-gray-600" th:text="'Page ' + (${page.number} + 1) + ' of ' + ${page.totalPages}"></span>
+
+        <button class="border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-sm"
+                hx-target="#results"
+                th:hx-get="'/ui/conjunctions?page=' + ${page.number + 1} + '&amp;sort=' + ${sortField} + ',' + ${sortDir}"
+                th:if="${page.hasNext()}">
+            Next
+        </button>
+    </div>
+</div>

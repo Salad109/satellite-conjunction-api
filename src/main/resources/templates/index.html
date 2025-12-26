@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://unpkg.com/htmx.org@2.0.8"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>"
+          rel="icon">
+    <title>Conjunction API</title>
+</head>
+<body class="bg-white text-gray-900 p-8 min-h-screen">
+<h1 class="text-2xl font-semibold mb-6">Conjunction API</h1>
+
+<button class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm" hx-get="/ui/conjunctions"
+        hx-target="#results">
+    Load Conjunctions
+</button>
+
+<div class="mt-6" id="results"></div>
+</body>
+</html>
