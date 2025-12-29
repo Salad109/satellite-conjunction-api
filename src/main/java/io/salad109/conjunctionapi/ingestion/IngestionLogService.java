@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Service
 public class IngestionLogService {
@@ -56,7 +57,7 @@ public class IngestionLogService {
         ingestionLogRepository.save(new IngestionLog(
                 null,
                 syncResult.startedAt(),
-                OffsetDateTime.now(),
+                OffsetDateTime.now(ZoneOffset.UTC),
                 syncResult.objectsInserted(),
                 syncResult.objectsUpdated(),
                 syncResult.objectsSkipped(),

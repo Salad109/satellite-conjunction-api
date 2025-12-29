@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,7 @@ public class IngestionService {
     public void sync() {
         log.info("Starting catalog sync...");
         long startTime = System.currentTimeMillis();
-        OffsetDateTime startedAt = OffsetDateTime.now();
+        OffsetDateTime startedAt = OffsetDateTime.now(ZoneOffset.UTC);
 
         try {
             List<OmmRecord> records = spaceTrackClient.fetchCatalog();
