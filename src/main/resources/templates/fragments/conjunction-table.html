@@ -5,7 +5,7 @@
             <th class="px-4 py-2 border-b cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                 hx-target="#results"
                 rowspan="2"
-                th:hx-get="'/ui/conjunctions?sort=missDistanceKm,' + (${sortField == 'missDistanceKm' && sortDir == 'asc'} ? 'desc' : 'asc')">
+                th:hx-get="'/ui/conjunctions?sort=missDistanceKm,' + (${sortField == 'missDistanceKm' && sortDir == 'asc'} ? 'desc' : 'asc') + '&amp;includeFormations=' + ${includeFormations}">
                 Miss Distance (km)
                 <span th:if="${sortField == 'missDistanceKm' && sortDir == 'asc'}">&#9650;</span>
                 <span th:if="${sortField == 'missDistanceKm' && sortDir == 'desc'}">&#9660;</span>
@@ -13,7 +13,7 @@
             <th class="px-4 py-2 border-b cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                 hx-target="#results"
                 rowspan="2"
-                th:hx-get="'/ui/conjunctions?sort=tca,' + (${sortField == 'tca' && sortDir == 'asc'} ? 'desc' : 'asc')">
+                th:hx-get="'/ui/conjunctions?sort=tca,' + (${sortField == 'tca' && sortDir == 'asc'} ? 'desc' : 'asc') + '&amp;includeFormations=' + ${includeFormations}">
                 TCA
                 <span th:if="${sortField == 'tca' && sortDir == 'asc'}">&#9650;</span>
                 <span th:if="${sortField == 'tca' && sortDir == 'desc'}">&#9660;</span>
@@ -21,7 +21,7 @@
             <th class="px-4 py-2 border-b cursor-pointer hover:bg-gray-100 whitespace-nowrap"
                 hx-target="#results"
                 rowspan="2"
-                th:hx-get="'/ui/conjunctions?sort=relativeVelocityMS,' + (${sortField == 'relativeVelocityMS' && sortDir == 'asc'} ? 'desc' : 'asc')">
+                th:hx-get="'/ui/conjunctions?sort=relativeVelocityMS,' + (${sortField == 'relativeVelocityMS' && sortDir == 'asc'} ? 'desc' : 'asc') + '&amp;includeFormations=' + ${includeFormations}">
                 Rel. Velocity (m/s)
                 <span th:if="${sortField == 'relativeVelocityMS' && sortDir == 'asc'}">&#9650;</span>
                 <span th:if="${sortField == 'relativeVelocityMS' && sortDir == 'desc'}">&#9660;</span>
@@ -58,7 +58,7 @@
     <div class="flex items-center gap-4 mt-4">
         <button class="border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-sm"
                 hx-target="#results"
-                th:hx-get="'/ui/conjunctions?page=' + ${page.number - 1} + '&amp;sort=' + ${sortField} + ',' + ${sortDir}"
+                th:hx-get="'/ui/conjunctions?page=' + ${page.number - 1} + '&amp;sort=' + ${sortField} + ',' + ${sortDir} + '&amp;includeFormations=' + ${includeFormations}"
                 th:if="${page.hasPrevious()}">
             Previous
         </button>
@@ -67,7 +67,7 @@
 
         <button class="border border-gray-300 hover:bg-gray-50 px-3 py-1 rounded text-sm"
                 hx-target="#results"
-                th:hx-get="'/ui/conjunctions?page=' + ${page.number + 1} + '&amp;sort=' + ${sortField} + ',' + ${sortDir}"
+                th:hx-get="'/ui/conjunctions?page=' + ${page.number + 1} + '&amp;sort=' + ${sortField} + ',' + ${sortDir} + '&amp;includeFormations=' + ${includeFormations}"
                 th:if="${page.hasNext()}">
             Next
         </button>

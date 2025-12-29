@@ -22,7 +22,7 @@ public class ConjunctionController {
 
     @GetMapping
     public ResponseEntity<Page<ConjunctionInfo>> getConjunctions(
-            @PageableDefault(sort = "tca", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(conjunctionService.getConjunctions(pageable));
+            @PageableDefault(sort = "tca", direction = Sort.Direction.DESC) Pageable pageable, boolean includeFormations) {
+        return ResponseEntity.ok(conjunctionService.getConjunctions(pageable, includeFormations));
     }
 }

@@ -48,8 +48,12 @@ public class ConjunctionService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ConjunctionInfo> getConjunctions(Pageable pageable) {
-        return conjunctionRepository.getConjunctionInfos(pageable);
+    public Page<ConjunctionInfo> getConjunctions(Pageable pageable, boolean includeFormations) {
+        if (includeFormations) {
+            return conjunctionRepository.getConjunctionInfosWithFormations(pageable);
+        } else {
+            return conjunctionRepository.getConjunctionInfos(pageable);
+        }
     }
 
     @Transactional

@@ -7,13 +7,19 @@
           rel="icon">
     <title>Conjunction API</title>
 </head>
-<body class="bg-white text-gray-900 p-8 min-h-screen">
+<body class="bg-white text-gray-900 p-8 min-h-screen" hx-get="/ui/conjunctions" hx-target="#results" hx-trigger="load">
 <h1 class="text-2xl font-semibold mb-6">Conjunction API</h1>
 
-<button class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm" hx-get="/ui/conjunctions"
-        hx-target="#results">
-    Load Conjunctions
-</button>
+<label class="flex items-center gap-2 text-sm cursor-pointer">
+    <input class="rounded cursor-pointer"
+           hx-get="/ui/conjunctions"
+           hx-include="this"
+           hx-target="#results"
+           hx-trigger="change"
+           name="includeFormations"
+           type="checkbox">
+    <span>Include formations (< 10 m/s)</span>
+</label>
 
 <div class="mt-6" id="results"></div>
 </body>
