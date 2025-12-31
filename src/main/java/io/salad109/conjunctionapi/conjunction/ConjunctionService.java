@@ -131,10 +131,14 @@ public class ConjunctionService {
     /**
      * Scan through lookahead window in large steps and record all detections within toleranceKm.
      */
-    private List<CoarseDetection> coarseSweep(List<SatellitePair> pairs, Map<Integer, TLEPropagator> propagators) {
+    public List<CoarseDetection> coarseSweep(List<SatellitePair> pairs, Map<Integer, TLEPropagator> propagators) {
+        return coarseSweep(pairs, propagators, OffsetDateTime.now(ZoneOffset.UTC), toleranceKm, stepSeconds, lookaheadHours);
+    }
+
+    public List<CoarseDetection> coarseSweep(List<SatellitePair> pairs, Map<Integer, TLEPropagator> propagators,
+                                             OffsetDateTime startTime, double toleranceKm, int stepSeconds, int lookaheadHours) {
         long startMs = System.currentTimeMillis();
         List<CoarseDetection> detections = new ArrayList<>();
-        OffsetDateTime startTime = OffsetDateTime.now(ZoneOffset.UTC);
 
         int totalSteps = (lookaheadHours * 3600) / stepSeconds;
         int logInterval = Math.max(1, totalSteps / 10); // Log every 10%
@@ -178,7 +182,11 @@ public class ConjunctionService {
      * Group detections by pair, then cluster consecutive detections into events (orbital passes).
      * Two detections belong to the same event if they're within 3 steps of each other.
      */
-    private Map<SatellitePair, List<List<CoarseDetection>>> groupIntoEvents(List<CoarseDetection> detections) {
+    public Map<SatellitePair, List<List<CoarseDetection>>> groupIntoEvents(List<CoarseDetection> detections) {
+        return groupIntoEvents(detections, stepSeconds);
+    }
+
+    public Map<SatellitePair, List<List<CoarseDetection>>> groupIntoEvents(List<CoarseDetection> detections, int stepSeconds) {
         // Group by pair
         Map<SatellitePair, List<CoarseDetection>> byPair = detections.stream()
                 .collect(Collectors.groupingBy(CoarseDetection::pair));
@@ -202,7 +210,7 @@ public class ConjunctionService {
     /**
      * Cluster sorted detections into groups where consecutive items are within gapThresholdSeconds.
      */
-    private List<List<CoarseDetection>> clusterByTimeGap(List<CoarseDetection> sorted, int gapThresholdSeconds) {
+    List<List<CoarseDetection>> clusterByTimeGap(List<CoarseDetection> sorted, int gapThresholdSeconds) {
         List<List<CoarseDetection>> clusters = new ArrayList<>();
         if (sorted.isEmpty()) return clusters;
 
@@ -231,7 +239,11 @@ public class ConjunctionService {
     /**
      * Refine an event (cluster of coarse detections) using binary search to find more accurate TCA and minimum distance.
      */
-    private Conjunction refineEvent(List<CoarseDetection> event, Map<Integer, TLEPropagator> propagators) {
+    public Conjunction refineEvent(List<CoarseDetection> event, Map<Integer, TLEPropagator> propagators) {
+        return refineEvent(event, propagators, stepSeconds);
+    }
+
+    public Conjunction refineEvent(List<CoarseDetection> event, Map<Integer, TLEPropagator> propagators, int stepSeconds) {
         // Start with the detection that had minimum distance
         CoarseDetection best = event.stream()
                 .min(Comparator.comparing(CoarseDetection::distance))
@@ -277,7 +289,7 @@ public class ConjunctionService {
     /**
      * Propagate both satellites to a given time and return the distance between them.
      */
-    private double propagateAndMeasure(SatellitePair pair, Map<Integer, TLEPropagator> propagators, OffsetDateTime time) {
+    double propagateAndMeasure(SatellitePair pair, Map<Integer, TLEPropagator> propagators, OffsetDateTime time) {
         AbsoluteDate date = toAbsoluteDate(time);
 
         try {
@@ -297,7 +309,7 @@ public class ConjunctionService {
     /**
      * Propagate both satellites to a given time and return the relative velocity.
      */
-    private double propagateAndMeasureVelocity(SatellitePair pair, Map<Integer, TLEPropagator> propagators, OffsetDateTime time) {
+    double propagateAndMeasureVelocity(SatellitePair pair, Map<Integer, TLEPropagator> propagators, OffsetDateTime time) {
         AbsoluteDate date = toAbsoluteDate(time);
 
         try {
@@ -314,7 +326,7 @@ public class ConjunctionService {
         }
     }
 
-    private Map<Integer, TLEPropagator> buildPropagators(List<Satellite> satellites) {
+    public Map<Integer, TLEPropagator> buildPropagators(List<Satellite> satellites) {
         long startMs = System.currentTimeMillis();
         Map<Integer, TLEPropagator> propagators = new HashMap<>();
 
@@ -327,7 +339,7 @@ public class ConjunctionService {
         return propagators;
     }
 
-    private Map<Integer, PVCoordinates> propagateAll(Map<Integer, TLEPropagator> propagators, OffsetDateTime targetTime) {
+    Map<Integer, PVCoordinates> propagateAll(Map<Integer, TLEPropagator> propagators, OffsetDateTime targetTime) {
         AbsoluteDate targetDate = toAbsoluteDate(targetTime);
 
         return propagators.entrySet().parallelStream()
@@ -344,21 +356,21 @@ public class ConjunctionService {
                         HashMap::putAll);
     }
 
-    private double calculateDistance(PVCoordinates pvA, PVCoordinates pvB) {
+    double calculateDistance(PVCoordinates pvA, PVCoordinates pvB) {
         double dx = (pvA.getPosition().getX() - pvB.getPosition().getX()) / 1000.0;
         double dy = (pvA.getPosition().getY() - pvB.getPosition().getY()) / 1000.0;
         double dz = (pvA.getPosition().getZ() - pvB.getPosition().getZ()) / 1000.0;
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
-    private double calculateRelativeVelocity(PVCoordinates pvA, PVCoordinates pvB) {
+    double calculateRelativeVelocity(PVCoordinates pvA, PVCoordinates pvB) {
         double dvx = pvA.getVelocity().getX() - pvB.getVelocity().getX();
         double dvy = pvA.getVelocity().getY() - pvB.getVelocity().getY();
         double dvz = pvA.getVelocity().getZ() - pvB.getVelocity().getZ();
         return Math.sqrt(dvx * dvx + dvy * dvy + dvz * dvz);
     }
 
-    private AbsoluteDate toAbsoluteDate(OffsetDateTime dateTime) {
+    AbsoluteDate toAbsoluteDate(OffsetDateTime dateTime) {
         return new AbsoluteDate(
                 dateTime.getYear(),
                 dateTime.getMonthValue(),
@@ -370,6 +382,6 @@ public class ConjunctionService {
         );
     }
 
-    private record CoarseDetection(SatellitePair pair, OffsetDateTime time, double distance) {
+    public record CoarseDetection(SatellitePair pair, OffsetDateTime time, double distance) {
     }
 }
