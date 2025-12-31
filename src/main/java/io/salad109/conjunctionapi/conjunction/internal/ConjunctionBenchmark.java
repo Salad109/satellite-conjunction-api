@@ -1,6 +1,5 @@
 package io.salad109.conjunctionapi.conjunction.internal;
 
-import io.salad109.conjunctionapi.conjunction.ConjunctionService;
 import io.salad109.conjunctionapi.satellite.PairReductionService;
 import io.salad109.conjunctionapi.satellite.Satellite;
 import io.salad109.conjunctionapi.satellite.SatellitePair;
@@ -38,12 +37,14 @@ public class ConjunctionBenchmark implements CommandLineRunner {
 
     private final SatelliteService satelliteService;
     private final PairReductionService pairReductionService;
-    private final ConjunctionService conjunctionService;
+    private final PropagationService propagationService;
+    private final ScanService scanService;
 
-    public ConjunctionBenchmark(SatelliteService satelliteService, PairReductionService pairReductionService, ConjunctionService conjunctionService) {
+    public ConjunctionBenchmark(SatelliteService satelliteService, PairReductionService pairReductionService, PropagationService propagationService, ScanService scanService) {
         this.satelliteService = satelliteService;
         this.pairReductionService = pairReductionService;
-        this.conjunctionService = conjunctionService;
+        this.propagationService = propagationService;
+        this.scanService = scanService;
     }
 
     @Override
@@ -61,7 +62,7 @@ public class ConjunctionBenchmark implements CommandLineRunner {
         List<SatellitePair> pairs = pairReductionService.findPotentialCollisionPairs(satellites);
         log.info("Reduced to {} candidate pairs", pairs.size());
 
-        Map<Integer, TLEPropagator> propagators = conjunctionService.buildPropagators(satellites);
+        Map<Integer, TLEPropagator> propagators = propagationService.buildPropagators(satellites);
         log.info("Built {} propagators", propagators.size());
         log.info("");
 
@@ -97,19 +98,18 @@ public class ConjunctionBenchmark implements CommandLineRunner {
         long benchmarkStart = System.currentTimeMillis();
 
         long coarseStart = System.currentTimeMillis();
-        List<ConjunctionService.CoarseDetection> detections = conjunctionService.coarseSweep(allPairs, propagators, startTime, toleranceKm, stepSeconds, lookaheadHours);
+        List<ScanService.CoarseDetection> detections = scanService.coarseSweep(allPairs, propagators, startTime, toleranceKm, stepSeconds, lookaheadHours);
         long coarseTime = System.currentTimeMillis() - coarseStart;
 
-        Map<SatellitePair, List<List<ConjunctionService.CoarseDetection>>> eventsByPair = conjunctionService.groupIntoEvents(detections, stepSeconds);
+        Map<SatellitePair, List<List<ScanService.CoarseDetection>>> eventsByPair = scanService.groupIntoEvents(detections, stepSeconds);
         int totalEvents = eventsByPair.values().stream().mapToInt(List::size).sum();
 
-        List<List<ConjunctionService.CoarseDetection>> allEvents = eventsByPair.values().stream()
+        List<List<ScanService.CoarseDetection>> allEvents = eventsByPair.values().stream()
                 .flatMap(List::stream)
                 .toList();
 
         long refineStart = System.currentTimeMillis();
-        List<Conjunction> refined = allEvents.parallelStream()
-                .map(event -> conjunctionService.refineEvent(event, propagators, stepSeconds))
+        List<Conjunction> refined = allEvents.parallelStream().map(event -> scanService.refineEvent(event, propagators, stepSeconds))
                 .filter(c -> c.getMissDistanceKm() <= thresholdKm)
                 .toList();
         long refineTime = System.currentTimeMillis() - refineStart;
@@ -126,7 +126,7 @@ public class ConjunctionBenchmark implements CommandLineRunner {
 
         long totalTime = System.currentTimeMillis() - benchmarkStart;
 
-        log.info("  -> {} detections, {} events, {} conjunctions, {} dedup in {}ms",
+        log.info(" -> {} detections, {} events, {} conjunctions, {} dedup in {}ms",
                 detections.size(), totalEvents, refined.size(), deduplicated.size(), totalTime);
 
         return new BenchmarkResult(name, toleranceKm, stepSeconds, detections.size(), totalEvents,
@@ -170,7 +170,7 @@ public class ConjunctionBenchmark implements CommandLineRunner {
                 writer.write("tolerance_km,step_s,detections,events,conj,dedup,coarse_s,refine_s,total_s\n");
 
                 for (BenchmarkResult r : results) {
-                    writer.write(String.format("%.0f,%d,%d,%d,%d,%d,%.1f,%.1f,%.1f\n",
+                    writer.write(String.format("%.0f,%d,%d,%d,%d,%d,%.1f,%.1f,%.1f%n",
                             r.toleranceKm,
                             r.stepSeconds,
                             r.detections,
