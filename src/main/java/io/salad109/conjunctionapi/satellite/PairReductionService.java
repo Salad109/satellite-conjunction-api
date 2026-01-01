@@ -2,7 +2,6 @@ package io.salad109.conjunctionapi.satellite;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,14 +13,11 @@ public class PairReductionService {
 
     private static final Logger log = LoggerFactory.getLogger(PairReductionService.class);
 
-    @Value("${conjunction.tolerance-km:10.0}")
-    private double toleranceKm;
-
     /**
      * Finds all pairs of satellites that could potentially collide.
      * Uses orbital geometry filters to reduce the number of pairs for detailed analysis.
      */
-    public List<SatellitePair> findPotentialCollisionPairs(List<Satellite> satellites) {
+    public List<SatellitePair> findPotentialCollisionPairs(List<Satellite> satellites, double toleranceKm) {
         long startMs = System.currentTimeMillis();
         int satelliteCount = satellites.size();
 
@@ -32,7 +28,7 @@ public class PairReductionService {
                     Satellite a = satellites.get(i);
                     for (int j = i + 1; j < satelliteCount; j++) {
                         Satellite b = satellites.get(j);
-                        if (canCollide(a, b)) {
+                        if (canCollide(a, b, toleranceKm)) {
                             consumer.accept(new SatellitePair(a, b));
                         }
                     }
@@ -47,14 +43,14 @@ public class PairReductionService {
      * Determines if two satellites could possibly collide.
      * Applies orbital geometry filters with mathematical certainty.
      */
-    public boolean canCollide(Satellite a, Satellite b) {
+    public boolean canCollide(Satellite a, Satellite b, double toleranceKm) {
         // Apply filters starting with computationally cheapest
-        return altitudeShellsOverlap(a, b) &&
+        return altitudeShellsOverlap(a, b, toleranceKm) &&
                 neitherAreDebris(a, b) &&
-                orbitalPlanesIntersect(a, b);
+                orbitalPlanesIntersect(a, b, toleranceKm);
     }
 
-    public boolean altitudeShellsOverlap(Satellite a, Satellite b) {
+    public boolean altitudeShellsOverlap(Satellite a, Satellite b, double toleranceKm) {
         double perigeeA = a.getPerigeeKm();
         double apogeeA = a.getApogeeKm();
         double perigeeB = b.getPerigeeKm();
@@ -66,7 +62,7 @@ public class PairReductionService {
         return !"DEBRIS".equals(a.getObjectType()) && !"DEBRIS".equals(b.getObjectType());
     }
 
-    public boolean orbitalPlanesIntersect(Satellite a, Satellite b) {
+    public boolean orbitalPlanesIntersect(Satellite a, Satellite b, double toleranceKm) {
         double iA = Math.toRadians(a.getInclination());
         double iB = Math.toRadians(b.getInclination());
         double raanA = Math.toRadians(a.getRaan());

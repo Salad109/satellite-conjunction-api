@@ -27,15 +27,17 @@ The application is organized into five modules:
 ## Conjunction Candidate Reduction
 
 With ~30,000 tracked objects, the naive approach would check over 400 million satellite pairs. The system applies
-several sequential filters to reduce computational load:
+sequential geometric filters to reduce this to ~3.4% (14.7M pairs).
+See [docs/pair-reduction.md](docs/pair-reduction.md) for details.
 
-| Strategy                        |   Unique Pairs | % of Original |
-|---------------------------------|---------------:|--------------:|
-| Full set (32,641 satellites)    |    437,562,153 |        100.0% |
-| Skip debris on debris           |    190,915,570 |        43.63% |
-| Only overlapping apogee/perigee |     80,289,038 |        18.35% |
-| Intersecting orbital planes     |     22,813,396 |         5.21% |
-| **All strategies combined**     | **14,708,895** |     **3.36%** |
+## Coarse and Fine Scanning
+
+The detection algorithm uses a two-step approach:
+
+1. **Coarse sweep**: Steps through time at configurable intervals, flagging approximate conjunctions
+2. **Refinement**: Binary search around detected conjunction events to find precise TCA and miss distance
+
+See [docs/conjunction-tuning.md](docs/conjunction-tuning.md) for tuning experiments and optimal parameters.
 
 ## Setup
 
@@ -80,15 +82,3 @@ This starts PostgreSQL and the application. The API will be available at `http:/
 docker-compose up postgres
 ./mvnw spring-boot:run
 ```
-
-## Configuration
-
-Key parameters in `application.properties`:
-
-| Property                             | Default          | Description                                         |
-|--------------------------------------|------------------|-----------------------------------------------------|
-| `conjunction.schedule.cron`          | `0 21 */6 * * *` | Detection schedule (avoid full hours per API rules) |
-| `conjunction.collision-threshold-km` | 5.0              | Miss distance to flag as conjunction                |
-| `conjunction.tolerance-km`           | 10.0             | Preliminary filter threshold                        |
-| `conjunction.lookahead-hours`        | 1                | How far ahead to propagate                          |
-| `conjunction.step-seconds`           | 60               | Time step between position checks                   |
