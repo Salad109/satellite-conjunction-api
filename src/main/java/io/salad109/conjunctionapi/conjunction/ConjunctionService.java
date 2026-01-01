@@ -71,7 +71,7 @@ public class ConjunctionService {
         log.debug("Loaded {} satellites", satellites.size());
 
         // Find and filter potential collision pairs
-        List<SatellitePair> pairs = pairReductionService.findPotentialCollisionPairs(satellites);
+        List<SatellitePair> pairs = pairReductionService.findPotentialCollisionPairs(satellites, toleranceKm);
         log.debug("Reduced to {} candidate pairs", pairs.size());
 
         // Build propagators

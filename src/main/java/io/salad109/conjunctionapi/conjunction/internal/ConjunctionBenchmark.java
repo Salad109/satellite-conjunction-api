@@ -59,9 +59,6 @@ public class ConjunctionBenchmark implements CommandLineRunner {
         OffsetDateTime fixedStartTime = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.DAYS);
         log.info("Using fixed start time: {}", fixedStartTime);
 
-        List<SatellitePair> pairs = pairReductionService.findPotentialCollisionPairs(satellites);
-        log.info("Reduced to {} candidate pairs", pairs.size());
-
         Map<Integer, TLEPropagator> propagators = propagationService.buildPropagators(satellites);
         log.info("Built {} propagators", propagators.size());
         log.info("");
@@ -75,7 +72,7 @@ public class ConjunctionBenchmark implements CommandLineRunner {
         double toleranceKm = 60;
         int stepSeconds = 4;
         while (toleranceKm <= 600) {
-            results.add(runBenchmark(pairs, propagators, fixedStartTime, toleranceKm, stepSeconds, lookaheadHours, thresholdKm));
+            results.add(runBenchmark(satellites, propagators, fixedStartTime, toleranceKm, stepSeconds, lookaheadHours, thresholdKm));
             toleranceKm += 15;
             stepSeconds += 1;
         }
@@ -85,7 +82,7 @@ public class ConjunctionBenchmark implements CommandLineRunner {
     }
 
     private BenchmarkResult runBenchmark(
-            List<SatellitePair> allPairs,
+            List<Satellite> satellites,
             Map<Integer, TLEPropagator> propagators,
             OffsetDateTime startTime,
             double toleranceKm,
@@ -97,8 +94,11 @@ public class ConjunctionBenchmark implements CommandLineRunner {
         log.info("Running: {}", name);
         long benchmarkStart = System.currentTimeMillis();
 
+        List<SatellitePair> pairs = pairReductionService.findPotentialCollisionPairs(satellites, toleranceKm);
+        log.info(" -> {} candidate pairs", pairs.size());
+
         long coarseStart = System.currentTimeMillis();
-        List<ScanService.CoarseDetection> detections = scanService.coarseSweep(allPairs, propagators, startTime, toleranceKm, stepSeconds, lookaheadHours);
+        List<ScanService.CoarseDetection> detections = scanService.coarseSweep(pairs, propagators, startTime, toleranceKm, stepSeconds, lookaheadHours);
         long coarseTime = System.currentTimeMillis() - coarseStart;
 
         Map<SatellitePair, List<List<ScanService.CoarseDetection>>> eventsByPair = scanService.groupIntoEvents(detections, stepSeconds);

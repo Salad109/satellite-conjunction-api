@@ -23,6 +23,7 @@ import java.util.stream.IntStream;
 public class PairReductionBenchmark implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(PairReductionBenchmark.class);
+    private static final double DEFAULT_TOLERANCE_KM = 50.0;
 
     private final SatelliteRepository satelliteRepository;
     private final PairReductionService pairReductionService;
@@ -61,21 +62,21 @@ public class PairReductionBenchmark implements CommandLineRunner {
                 "altitudes overlap",
                 satellites,
                 totalPairs,
-                pairReductionService::altitudeShellsOverlap
+                (a, b) -> pairReductionService.altitudeShellsOverlap(a, b, DEFAULT_TOLERANCE_KM)
         );
 
         BenchmarkResult planesIntersect = benchmarkStrategy(
                 "planes intersect",
                 satellites,
                 totalPairs,
-                pairReductionService::orbitalPlanesIntersect
+                (a, b) -> pairReductionService.orbitalPlanesIntersect(a, b, DEFAULT_TOLERANCE_KM)
         );
 
         BenchmarkResult allStrategies = benchmarkStrategy(
                 "all strategies",
                 satellites,
                 totalPairs,
-                pairReductionService::canCollide
+                (a, b) -> pairReductionService.canCollide(a, b, DEFAULT_TOLERANCE_KM)
         );
 
         printResultsTable(totalPairs, noReduction, noDebris, altitudesOverlap, planesIntersect, allStrategies);
