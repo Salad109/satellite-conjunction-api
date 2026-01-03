@@ -48,15 +48,16 @@ public class ConjunctionBenchmark implements CommandLineRunner {
     }
 
     @Override
-    public void run(String @NonNull ... args) {
+    public void run(String @NonNull ... args) throws InterruptedException {
         log.info("Starting conjunction detection benchmark");
         log.info("");
 
         List<Satellite> satellites = satelliteService.getAll();
         log.info("Loaded {} satellites", satellites.size());
 
-        // Use fixed start time midnight UTC today
-        OffsetDateTime fixedStartTime = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.DAYS);
+        // Use fixed start time
+        OffsetDateTime fixedStartTime = OffsetDateTime.of(2025, 12, 31, 0, 0, 0, 0, ZoneOffset.UTC)
+                .truncatedTo(ChronoUnit.DAYS);
         log.info("Using fixed start time: {}", fixedStartTime);
 
         Map<Integer, TLEPropagator> propagators = propagationService.buildPropagators(satellites);
@@ -68,16 +69,18 @@ public class ConjunctionBenchmark implements CommandLineRunner {
 
         List<BenchmarkResult> results = new ArrayList<>();
 
-        // Run benchmarks with varying tolerance (60-600km, step 15) and step seconds (4-40s, step 1)
-        double toleranceKm = 60;
-        int stepSeconds = 4;
+        // Run benchmarks with various parameters
+        double toleranceKm = 105;
         while (toleranceKm <= 600) {
+            int stepSeconds = (int) (toleranceKm / 15.0);
+
+            System.gc();
+            Thread.sleep(100);
             results.add(runBenchmark(satellites, propagators, fixedStartTime, toleranceKm, stepSeconds, lookaheadHours, thresholdKm));
+
             toleranceKm += 15;
-            stepSeconds += 1;
         }
 
-        printResultsTable(results);
         writeCsvResults(results);
     }
 
@@ -92,14 +95,14 @@ public class ConjunctionBenchmark implements CommandLineRunner {
     ) {
         String name = String.format("tol=%.0f, step=%d", toleranceKm, stepSeconds);
         log.info("Running: {}", name);
-        long benchmarkStart = System.currentTimeMillis();
+        long benchmarkStart = System.nanoTime();
 
         List<SatellitePair> pairs = pairReductionService.findPotentialCollisionPairs(satellites, toleranceKm);
-        log.info(" -> {} candidate pairs", pairs.size());
+        log.info("{} candidate pairs", pairs.size());
 
-        long coarseStart = System.currentTimeMillis();
+        long coarseStart = System.nanoTime();
         List<ScanService.CoarseDetection> detections = scanService.coarseSweep(pairs, propagators, startTime, toleranceKm, stepSeconds, lookaheadHours);
-        long coarseTime = System.currentTimeMillis() - coarseStart;
+        long coarseTime = System.nanoTime() - coarseStart;
 
         Map<SatellitePair, List<List<ScanService.CoarseDetection>>> eventsByPair = scanService.groupIntoEvents(detections, stepSeconds);
         int totalEvents = eventsByPair.values().stream().mapToInt(List::size).sum();
@@ -108,11 +111,12 @@ public class ConjunctionBenchmark implements CommandLineRunner {
                 .flatMap(List::stream)
                 .toList();
 
-        long refineStart = System.currentTimeMillis();
+        long refineStart = System.nanoTime();
         List<Conjunction> refined = allEvents.parallelStream().map(event -> scanService.refineEvent(event, propagators, stepSeconds))
                 .filter(c -> c.getMissDistanceKm() <= thresholdKm)
                 .toList();
-        long refineTime = System.currentTimeMillis() - refineStart;
+        long refineTime = System.nanoTime() - refineStart;
+        log.info("Fine sweep completed in {}ms", refineTime / 1_000_000);
 
         List<Conjunction> deduplicated = refined.stream()
                 .collect(Collectors.toMap(
@@ -124,40 +128,13 @@ public class ConjunctionBenchmark implements CommandLineRunner {
                 .stream()
                 .toList();
 
-        long totalTime = System.currentTimeMillis() - benchmarkStart;
+        long totalTime = System.nanoTime() - benchmarkStart;
 
         log.info(" -> {} detections, {} events, {} conjunctions, {} dedup in {}ms",
-                detections.size(), totalEvents, refined.size(), deduplicated.size(), totalTime);
+                detections.size(), totalEvents, refined.size(), deduplicated.size(), totalTime / 1_000_000);
 
         return new BenchmarkResult(name, toleranceKm, stepSeconds, detections.size(), totalEvents,
                 refined.size(), deduplicated.size(), coarseTime, refineTime, totalTime);
-    }
-
-
-    private void printResultsTable(List<BenchmarkResult> results) {
-        log.info("");
-        log.info("=".repeat(114));
-        log.info("CONJUNCTION BENCHMARK RESULTS");
-        log.info("=".repeat(114));
-        log.info(String.format("%-18s | %8s | %6s | %10s | %8s | %6s | %6s | %8s | %8s | %8s",
-                "config", "tol(km)", "step(s)", "detections", "events", "conj", "dedup", "coarse", "refine", "total"));
-        log.info("-".repeat(114));
-
-        for (BenchmarkResult r : results) {
-            log.info(String.format("%-18s | %8.0f | %7d | %10s | %8s | %6d | %6d | %7.1fs | %7.1fs | %7.1fs",
-                    r.name, r.toleranceKm, r.stepSeconds,
-                    formatCount(r.detections), formatCount(r.events),
-                    r.conjunctions, r.deduplicated,
-                    r.coarseTimeMs / 1000.0, r.refineTimeMs / 1000.0, r.totalTimeMs / 1000.0));
-        }
-
-        log.info("=".repeat(114));
-    }
-
-    private String formatCount(long count) {
-        if (count >= 1_000_000) return String.format("%.1fM", count / 1_000_000.0);
-        if (count >= 1_000) return String.format("%.0fK", count / 1_000.0);
-        return String.valueOf(count);
     }
 
     private void writeCsvResults(List<BenchmarkResult> results) {
@@ -170,16 +147,16 @@ public class ConjunctionBenchmark implements CommandLineRunner {
                 writer.write("tolerance_km,step_s,detections,events,conj,dedup,coarse_s,refine_s,total_s\n");
 
                 for (BenchmarkResult r : results) {
-                    writer.write(String.format("%.0f,%d,%d,%d,%d,%d,%.1f,%.1f,%.1f%n",
+                    writer.write(String.format("%.0f,%d,%d,%d,%d,%d,%.6f,%.6f,%.6f%n",
                             r.toleranceKm,
                             r.stepSeconds,
                             r.detections,
                             r.events,
                             r.conjunctions,
                             r.deduplicated,
-                            r.coarseTimeMs / 1000.0,
-                            r.refineTimeMs / 1000.0,
-                            r.totalTimeMs / 1000.0));
+                            r.coarseTimeMs / 1_000_000_000.0,
+                            r.refineTimeMs / 1_000_000_000.0,
+                            r.totalTimeMs / 1_000_000_000.0));
                 }
             }
 

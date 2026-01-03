@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 public class ScanService {
 
     private static final Logger log = LoggerFactory.getLogger(ScanService.class);
+    private static final double PHI = (1 + Math.sqrt(5)) / 2;  // golden ratio
 
     private final PropagationService propagationService;
 
@@ -176,39 +177,47 @@ public class ScanService {
     }
 
     /**
-     * Refine an event (cluster of coarse detections) using binary search to find more accurate TCA and minimum distance.
+     * Refine an event (cluster of coarse detections) using golden section search to find more accurate TCA and minimum distance.
      */
     Conjunction refineEvent(List<CoarseDetection> event, Map<Integer, TLEPropagator> propagators, int stepSeconds) {
-        // Start with the detection that had minimum distance
         CoarseDetection best = event.stream()
                 .min(Comparator.comparing(CoarseDetection::distance))
                 .orElseThrow();
-
         SatellitePair pair = best.pair();
-        OffsetDateTime tca = best.time();
-        double minDistance = best.distance();
 
-        // Use binary search to narrow down to 100ms accuracy
-        long searchWindowMs = stepSeconds * 1000L;
-        while (searchWindowMs >= 100) {
-            searchWindowMs /= 2;
+        // Search interval is stepSeconds/2 on each side of best detection
+        long halfWindowNanos = (stepSeconds * 1_000_000_000L) / 2;
+        OffsetDateTime baseTime = best.time().minusNanos(halfWindowNanos);
 
-            OffsetDateTime left = tca.minusNanos(searchWindowMs * 1_000_000);
-            OffsetDateTime right = tca.plusNanos(searchWindowMs * 1_000_000);
+        long a = 0;
+        long b = 2 * halfWindowNanos;
 
-            double distLeft = propagationService.propagateAndMeasureDistance(pair, propagators, left);
-            double distRight = propagationService.propagateAndMeasureDistance(pair, propagators, right);
+        // Interior points at golden ratio positions
+        long x1 = (long) (b - (b - a) / PHI);  // 0.382 position
+        long x2 = (long) (a + (b - a) / PHI);  // 0.618 position
 
-            if (distLeft < minDistance && distLeft <= distRight) {
-                tca = left;
-                minDistance = distLeft;
-            } else if (distRight < minDistance) {
-                tca = right;
-                minDistance = distRight;
-            } // else keep current tca and retry with smaller window
+        double f1 = propagationService.propagateAndMeasureDistance(pair, propagators, baseTime.plusNanos(x1));
+        double f2 = propagationService.propagateAndMeasureDistance(pair, propagators, baseTime.plusNanos(x2));
+
+        while (b - a > 100_000_000L) {
+            if (f1 < f2) {
+                b = x2;
+                x2 = x1;
+                f2 = f1;
+                x1 = (long) (b - (b - a) / PHI);
+                f1 = propagationService.propagateAndMeasureDistance(pair, propagators, baseTime.plusNanos(x1));
+            } else {
+                a = x1;
+                x1 = x2;
+                f1 = f2;
+                x2 = (long) (a + (b - a) / PHI);
+                f2 = propagationService.propagateAndMeasureDistance(pair, propagators, baseTime.plusNanos(x2));
+            }
         }
 
-        // Calculate relative velocity at refined TCA
+        OffsetDateTime tca = f1 < f2 ? baseTime.plusNanos(x1) : baseTime.plusNanos(x2);
+        double minDistance = Math.min(f1, f2);
+
         double relativeVelocity = propagationService.propagateAndMeasureVelocity(pair, propagators, tca);
 
         return new Conjunction(
