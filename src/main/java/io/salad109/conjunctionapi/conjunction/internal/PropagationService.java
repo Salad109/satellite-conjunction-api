@@ -15,6 +15,7 @@ import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 @Service
 public class PropagationService {
@@ -75,21 +76,54 @@ public class PropagationService {
     }
 
 
-    public Map<Integer, PVCoordinates> propagateAll(Map<Integer, TLEPropagator> propagators, OffsetDateTime targetTime) {
-        AbsoluteDate targetDate = toAbsoluteDate(targetTime);
+    /**
+     * Pre-compute positions for all satellites across all time steps.
+     */
+    public PositionCache precomputePositions(Map<Integer, TLEPropagator> propagators,
+                                             OffsetDateTime startTime, int stepSeconds, int totalSteps) {
+        log.debug("Pre-computing positions for {} satellites across {} steps", propagators.size(), totalSteps);
+        long startMs = System.currentTimeMillis();
 
-        return propagators.entrySet().parallelStream()
-                .<Map.Entry<Integer, PVCoordinates>>mapMulti((entry, consumer) -> {
-                    try {
-                        PVCoordinates pv = entry.getValue().getPVCoordinates(targetDate, entry.getValue().getFrame());
-                        consumer.accept(Map.entry(entry.getKey(), pv));
-                    } catch (Exception e) {
-                        // Skip failed propagations during coarse scan
-                    }
-                })
-                .collect(HashMap::new,
-                        (map, entry) -> map.put(entry.getKey(), entry.getValue()),
-                        HashMap::putAll);
+        // Build time arrays
+        OffsetDateTime[] times = new OffsetDateTime[totalSteps];
+        AbsoluteDate[] dates = new AbsoluteDate[totalSteps];
+        for (int i = 0; i < totalSteps; i++) {
+            times[i] = startTime.plusSeconds((long) i * stepSeconds);
+            dates[i] = toAbsoluteDate(times[i]);
+        }
+
+        // Build satellite index mapping
+        Integer[] satIds = propagators.keySet().toArray(Integer[]::new);
+        Map<Integer, Integer> noradIdToArrayId = HashMap.newHashMap(satIds.length);
+        for (int i = 0; i < satIds.length; i++) {
+            noradIdToArrayId.put(satIds[i], i);
+        }
+
+        // Allocate position arrays
+        int numSats = satIds.length;
+        double[][] x = new double[numSats][totalSteps];
+        double[][] y = new double[numSats][totalSteps];
+        double[][] z = new double[numSats][totalSteps];
+        boolean[][] valid = new boolean[numSats][totalSteps];
+
+        // One thread per satellite's all positions
+        IntStream.range(0, numSats).parallel().forEach(satIndex -> {
+            TLEPropagator prop = propagators.get(satIds[satIndex]);
+            for (int step = 0; step < totalSteps; step++) {
+                try {
+                    PVCoordinates pv = prop.getPVCoordinates(dates[step], prop.getFrame());
+                    x[satIndex][step] = pv.getPosition().getX() / 1000.0;
+                    y[satIndex][step] = pv.getPosition().getY() / 1000.0;
+                    z[satIndex][step] = pv.getPosition().getZ() / 1000.0;
+                    valid[satIndex][step] = true;
+                } catch (Exception e) {
+                    valid[satIndex][step] = false;
+                }
+            }
+        });
+
+        log.debug("Position pre-computation completed in {}ms", System.currentTimeMillis() - startMs);
+        return new PositionCache(noradIdToArrayId, times, x, y, z, valid);
     }
 
     public double calculateDistance(PVCoordinates pvA, PVCoordinates pvB) {
@@ -116,5 +150,20 @@ public class PropagationService {
                 dateTime.getSecond() + dateTime.getNano() / 1e9,
                 TimeScalesFactory.getUTC()
         );
+    }
+
+    record PositionCache(Map<Integer, Integer> noradIdToArrayId, OffsetDateTime[] times,
+                                double[][] x, double[][] y, double[][] z,
+                                boolean[][] valid) {
+        public double distanceSquaredAt(int a, int b, int step) {
+            double dx = x[a][step] - x[b][step];
+            double dy = y[a][step] - y[b][step];
+            double dz = z[a][step] - z[b][step];
+            return dx * dx + dy * dy + dz * dz;
+        }
+
+        public boolean validAt(int a, int b, int step) {
+            return valid[a][step] && valid[b][step];
+        }
     }
 }

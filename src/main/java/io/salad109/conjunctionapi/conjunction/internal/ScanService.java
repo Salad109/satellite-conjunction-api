@@ -2,7 +2,6 @@ package io.salad109.conjunctionapi.conjunction.internal;
 
 import io.salad109.conjunctionapi.satellite.SatellitePair;
 import org.orekit.propagation.analytical.tle.TLEPropagator;
-import org.orekit.utils.PVCoordinates;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -10,7 +9,10 @@ import org.springframework.stereotype.Service;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -80,40 +82,46 @@ public class ScanService {
                                       OffsetDateTime startTime, double toleranceKm, int stepSeconds, int lookaheadHours) {
         long startMs = System.currentTimeMillis();
 
-        int totalSteps = (lookaheadHours * 3600) / stepSeconds;
-        int logInterval = Math.max(1, totalSteps / 10); // Log every 10%
+        int totalSteps = (lookaheadHours * 3600) / stepSeconds + 1;
         log.debug("Coarse sweep: {} steps over {} hours at {}s intervals", totalSteps, lookaheadHours, stepSeconds);
 
-        int stepCount = 0;
-        List<CoarseDetection> detections = new ArrayList<>();
-        for (int offsetSeconds = 0; offsetSeconds <= lookaheadHours * 3600; offsetSeconds += stepSeconds) {
-            OffsetDateTime time = startTime.plusSeconds(offsetSeconds);
-            Map<Integer, PVCoordinates> positions = propagationService.propagateAll(propagators, time);
+        // Pre-compute all satellite positions
+        PropagationService.PositionCache precomputedPositions = propagationService.precomputePositions(
+                propagators, startTime, stepSeconds, totalSteps);
 
-            List<CoarseDetection> stepDetections = pairs.parallelStream()
-                    .<CoarseDetection>mapMulti((pair, consumer) -> {
-                        PVCoordinates pvA = positions.get(pair.a().getNoradCatId());
-                        PVCoordinates pvB = positions.get(pair.b().getNoradCatId());
-                        if (pvA == null || pvB == null) return;
-                        double distance = propagationService.calculateDistance(pvA, pvB);
-                        if (distance < toleranceKm) {
-                            consumer.accept(new CoarseDetection(pair, time, distance));
-                        }
-                    })
-                    .toList();
-
-            detections.addAll(stepDetections);
-            stepCount++;
-
-            if (stepCount % logInterval == 0) {
-                int percent = (stepCount * 100) / totalSteps;
-                log.debug("Coarse sweep progress: {}% ({}/{} steps)",
-                        percent, stepCount, totalSteps);
-            }
-        }
+        // Check all pairs
+        List<CoarseDetection> detections = checkPairs(pairs, precomputedPositions, toleranceKm);
 
         log.debug("Coarse sweep completed in {}ms with {} total detections",
                 System.currentTimeMillis() - startMs, detections.size());
+        return detections;
+    }
+
+    private List<CoarseDetection> checkPairs(List<SatellitePair> pairs, PropagationService.PositionCache precomputedPositions,
+                                             double toleranceKm) {
+        log.debug("Checking {} pairs for close approaches", pairs.size());
+        long checkStart = System.currentTimeMillis();
+
+        double tolSq = toleranceKm * toleranceKm; // skip sqrt by comparing squared distances
+        int totalSteps = precomputedPositions.times().length;
+
+        List<CoarseDetection> detections = pairs.parallelStream()
+                .<CoarseDetection>mapMulti((pair, consumer) -> {
+                    Integer idxA = precomputedPositions.noradIdToArrayId().get(pair.a().getNoradCatId());
+                    Integer idxB = precomputedPositions.noradIdToArrayId().get(pair.b().getNoradCatId());
+                    if (idxA == null || idxB == null) return;
+
+                    for (int step = 0; step < totalSteps; step++) {
+                        if (!precomputedPositions.validAt(idxA, idxB, step)) continue;
+                        double distSq = precomputedPositions.distanceSquaredAt(idxA, idxB, step);
+                        if (distSq < tolSq) {
+                            consumer.accept(new CoarseDetection(pair, precomputedPositions.times()[step], Math.sqrt(distSq)));
+                        }
+                    }
+                })
+                .toList();
+
+        log.debug("Pair checking completed in {}ms", System.currentTimeMillis() - checkStart);
         return detections;
     }
 
@@ -129,15 +137,16 @@ public class ScanService {
         // Cluster each pair's detections by time gap
         int gapThresholdSeconds = stepSeconds * 3;
 
-        Map<SatellitePair, List<List<CoarseDetection>>> result = new HashMap<>();
-        for (var entry : byPair.entrySet()) {
-            List<CoarseDetection> sorted = entry.getValue().stream()
-                    .sorted(Comparator.comparing(CoarseDetection::time))
-                    .toList();
-
-            List<List<CoarseDetection>> events = clusterByTimeGap(sorted, gapThresholdSeconds);
-            result.put(entry.getKey(), events);
-        }
+        Map<SatellitePair, List<List<CoarseDetection>>> result = byPair.entrySet().parallelStream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> {
+                            List<CoarseDetection> sorted = entry.getValue().stream()
+                                    .sorted(Comparator.comparing(CoarseDetection::time))
+                                    .toList();
+                            return clusterByTimeGap(sorted, gapThresholdSeconds);
+                        }
+                ));
 
         log.debug("Grouped into {} events across {} pairs",
                 result.values().stream().mapToInt(List::size).sum(), result.size());
