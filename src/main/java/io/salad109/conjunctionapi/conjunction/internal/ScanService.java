@@ -1,6 +1,12 @@
 package io.salad109.conjunctionapi.conjunction.internal;
 
 import io.salad109.conjunctionapi.satellite.SatellitePair;
+import org.apache.commons.math3.optim.MaxEval;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.univariate.BrentOptimizer;
+import org.apache.commons.math3.optim.univariate.SearchInterval;
+import org.apache.commons.math3.optim.univariate.UnivariateObjectiveFunction;
+import org.apache.commons.math3.optim.univariate.UnivariatePointValuePair;
 import org.orekit.propagation.analytical.tle.TLEPropagator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +25,6 @@ import java.util.stream.Collectors;
 public class ScanService {
 
     private static final Logger log = LoggerFactory.getLogger(ScanService.class);
-    private static final double PHI = (1 + Math.sqrt(5)) / 2;  // golden ratio
 
     private final PropagationService propagationService;
 
@@ -185,7 +190,7 @@ public class ScanService {
     }
 
     /**
-     * Refine an event (cluster of coarse detections) using golden section search to find more accurate TCA and minimum distance.
+     * Refine an event (cluster of coarse detections) using Brent's method to find more accurate TCA and minimum distance.
      */
     Conjunction refineEvent(List<CoarseDetection> event, Map<Integer, TLEPropagator> propagators, int stepSeconds) {
         CoarseDetection best = event.stream()
@@ -197,34 +202,23 @@ public class ScanService {
         long halfWindowNanos = (stepSeconds * 1_000_000_000L) / 2;
         OffsetDateTime baseTime = best.time().minusNanos(halfWindowNanos);
 
-        long a = 0;
-        long b = 2 * halfWindowNanos;
+        // Use Brent's method from Apache Commons Math
+        // Only absolute tolerance matters. 50ms = 50,000,000 nanoseconds
+        BrentOptimizer optimizer = new BrentOptimizer(1e-8, 50_000_000);
 
-        // Interior points at golden ratio positions
-        long x1 = (long) (b - (b - a) / PHI);  // 0.382 position
-        long x2 = (long) (a + (b - a) / PHI);  // 0.618 position
+        UnivariateObjectiveFunction objectiveFunction = new UnivariateObjectiveFunction(
+                offsetNanos -> propagationService.propagateAndMeasureDistance(pair, propagators, baseTime.plusNanos((long) offsetNanos))
+        );
 
-        double f1 = propagationService.propagateAndMeasureDistance(pair, propagators, baseTime.plusNanos(x1));
-        double f2 = propagationService.propagateAndMeasureDistance(pair, propagators, baseTime.plusNanos(x2));
+        UnivariatePointValuePair result = optimizer.optimize(
+                objectiveFunction,
+                GoalType.MINIMIZE,
+                new SearchInterval(0, 2.0 * halfWindowNanos),
+                MaxEval.unlimited()
+        );
 
-        while (b - a > 100_000_000L) {
-            if (f1 < f2) {
-                b = x2;
-                x2 = x1;
-                f2 = f1;
-                x1 = (long) (b - (b - a) / PHI);
-                f1 = propagationService.propagateAndMeasureDistance(pair, propagators, baseTime.plusNanos(x1));
-            } else {
-                a = x1;
-                x1 = x2;
-                f1 = f2;
-                x2 = (long) (a + (b - a) / PHI);
-                f2 = propagationService.propagateAndMeasureDistance(pair, propagators, baseTime.plusNanos(x2));
-            }
-        }
-
-        OffsetDateTime tca = f1 < f2 ? baseTime.plusNanos(x1) : baseTime.plusNanos(x2);
-        double minDistance = Math.min(f1, f2);
+        OffsetDateTime tca = baseTime.plusNanos((long) result.getPoint());
+        double minDistance = result.getValue();
 
         double relativeVelocity = propagationService.propagateAndMeasureVelocity(pair, propagators, tca);
 
