@@ -104,3 +104,11 @@ best performance. Going above ratio 12 provides no detection benefit and increas
 
 The theoretical 15 km/s limit is too conservative in practice. Real-world close approaches rarely occur directly head-on
 at maximum speed.
+
+![Total Processing Time](3-conjunction-step-ratio/1_total_time.png)
+
+![Coarse vs Refine Time](3-conjunction-step-ratio/2_coarse_vs_refine.png)
+
+![Time Breakdown](3-conjunction-step-ratio/3_time_breakdown.png)
+
+![Conjunctions Detected](3-conjunction-step-ratio/4_conjunctions.png)

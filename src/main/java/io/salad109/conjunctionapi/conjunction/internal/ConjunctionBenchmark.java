@@ -73,27 +73,29 @@ public class ConjunctionBenchmark implements CommandLineRunner {
         int stepSecondRatio = 12;
         int stride = 6;
 
-        List<BenchmarkResult> results = new ArrayList<>();
 
-        for (double toleranceKm = 60; toleranceKm <= 1200; toleranceKm += 12) {
-            int stepSeconds = (int) (toleranceKm / stepSecondRatio);
+        while (true) {
+            List<BenchmarkResult> results = new ArrayList<>();
+            for (double toleranceKm = 60; toleranceKm <= 1200; toleranceKm += 12) {
+                int stepSeconds = (int) (toleranceKm / stepSecondRatio);
 
-            System.gc();
-            Thread.sleep(100);
-            results.add(runBenchmark(satellites,
-                    propagators,
-                    fixedStartTime,
-                    toleranceKm,
-                    prepassToleranceKm,
-                    stepSeconds,
-                    stepSecondRatio,
-                    lookaheadHours,
-                    thresholdKm,
-                    stride));
+                System.gc();
+                Thread.sleep(100);
+                results.add(runBenchmark(satellites,
+                        propagators,
+                        fixedStartTime,
+                        toleranceKm,
+                        prepassToleranceKm,
+                        stepSeconds,
+                        stepSecondRatio,
+                        lookaheadHours,
+                        thresholdKm,
+                        stride));
+            }
+
+
+            writeCsvResults(results);
         }
-
-
-        writeCsvResults(results);
     }
 
     private BenchmarkResult runBenchmark(

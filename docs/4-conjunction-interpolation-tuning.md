@@ -63,3 +63,11 @@ approaches can be missed during the coarse sweep.
 
 This reduces SGP4 calls by 83% while preserving all conjunction detections. Higher strides offer diminishing returns
 (88% vs 83% at stride=8) while risking missed conjunctions.
+
+![Total Processing Time](4-conjunction-interpolation/1_total_time.png)
+
+![Coarse vs Refine Time](4-conjunction-interpolation/2_coarse_vs_refine.png)
+
+![Time Breakdown](4-conjunction-interpolation/3_time_breakdown.png)
+
+![Conjunctions Detected](4-conjunction-interpolation/4_conjunctions.png)

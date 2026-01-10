@@ -62,6 +62,14 @@ Conjunction counts stabilize at **prepass=12.5 km**:
 This is the minimum value that captures all conjunction events. The relation `prepass > final threshold tolerance` is
 expected, since reduction geometry is approximate, and extra margin is needed.
 
+![Total Processing Time](2-conjunction-prepass/1_total_time.png)
+
+![Coarse vs Refine Time](2-conjunction-prepass/2_coarse_vs_refine.png)
+
+![Time Breakdown](2-conjunction-prepass/3_time_breakdown.png)
+
+![Conjunctions Detected](2-conjunction-prepass/4_conjunctions.png)
+
 ## Running the Benchmark
 
 ```bash

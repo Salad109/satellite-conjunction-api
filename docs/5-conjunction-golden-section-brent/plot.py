@@ -22,19 +22,6 @@ plt.savefig('1_total_time.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # Plot 2
-fig, ax = plt.subplots(figsize=(10, 6))
-ax.plot(df1['tolerance_km'], df1['detections']/1e6, 'o-', color='#2E86AB', linewidth=2, markersize=8, label='Golden section search')
-ax.plot(df2['tolerance_km'], df2['detections']/1e6, 's-', color='#D62839', linewidth=2, markersize=8, label='Brent\'s method')
-ax.set_xlabel('Tolerance (km)', fontsize=12)
-ax.set_ylabel('Detections (millions)', fontsize=12)
-ax.set_title('Detections vs Tolerance', fontsize=14, fontweight='bold')
-ax.legend(fontsize=11)
-ax.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.savefig('2_detections.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-# Plot 3
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 ax1.plot(df1['tolerance_km'], df1['coarse_s'], 'o-', color='#2E86AB', linewidth=2, markersize=8, label='Golden section search')
 ax1.plot(df2['tolerance_km'], df2['coarse_s'], 's-', color='#D62839', linewidth=2, markersize=8, label='Brent\'s method')
@@ -51,10 +38,10 @@ ax2.set_title('Refine Processing Time', fontsize=14, fontweight='bold')
 ax2.legend(fontsize=11)
 ax2.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig('3_coarse_vs_refine.png', dpi=300, bbox_inches='tight')
+plt.savefig('2_coarse_vs_refine.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Plot 4
+# Plot 3
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 ax1.fill_between(df1['tolerance_km'], 0, df1['coarse_s'], label='Coarse', alpha=0.7, color='#06A77D')
 ax1.fill_between(df1['tolerance_km'], df1['coarse_s'], df1['total_s'], label='Refine', alpha=0.7, color='#D62839')
@@ -71,10 +58,10 @@ ax2.set_title('Brent\'s Method Processing Time Breakdown', fontsize=14, fontweig
 ax2.legend(fontsize=11)
 ax2.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig('4_time_breakdown.png', dpi=300, bbox_inches='tight')
+plt.savefig('3_time_breakdown.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Plot 5
+# Plot 4
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 ax1.plot(df1['tolerance_km'], df1['conj'], 'o-', color='#2E86AB', linewidth=2, markersize=8, label='Golden section search')
 ax1.plot(df2['tolerance_km'], df2['conj'], 's-', color='#D62839', linewidth=2, markersize=8, label='Brent\'s method')
@@ -102,5 +89,5 @@ for bar, val in zip(bars, avg_conj):
              f'{val:.1f}', ha='center', va='bottom', fontsize=10)
 
 plt.tight_layout()
-plt.savefig('5_conjunctions.png', dpi=300, bbox_inches='tight')
+plt.savefig('4_conjunctions.png', dpi=300, bbox_inches='tight')
 plt.close()

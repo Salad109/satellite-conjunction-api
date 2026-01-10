@@ -23,19 +23,6 @@ plt.close()
 # Plot 2
 fig, ax = plt.subplots(figsize=(10, 6))
 for i, (ratio, df) in enumerate(datasets):
-    ax.plot(df['tolerance_km'], df['detections']/1e6, 'o-', linewidth=2, markersize=8, label=f'Ratio {ratio}')
-ax.set_xlabel('Tolerance (km)', fontsize=12)
-ax.set_ylabel('Detections (millions)', fontsize=12)
-ax.set_title('Detections vs Tolerance', fontsize=14, fontweight='bold')
-ax.legend(fontsize=11)
-ax.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.savefig('2_detections.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-# Plot 3
-fig, ax = plt.subplots(figsize=(10, 6))
-for i, (ratio, df) in enumerate(datasets):
     ax.plot(df['tolerance_km'], df['coarse_s'], 'o-', linewidth=2, markersize=8, label=f'Ratio {ratio} Coarse')
     ax.plot(df['tolerance_km'], df['refine_s'], 's-', linewidth=2, markersize=8, alpha=0.6, label=f'Ratio {ratio} Refine')
 ax.set_xlabel('Tolerance (km)', fontsize=12)
@@ -44,10 +31,10 @@ ax.set_title('Coarse vs Refine Processing Time', fontsize=14, fontweight='bold')
 ax.legend(fontsize=11)
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig('3_coarse_vs_refine.png', dpi=300, bbox_inches='tight')
+plt.savefig('2_coarse_vs_refine.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Plot 4
+# Plot 3
 fig, axes = plt.subplots(1, len(datasets), figsize=(6*len(datasets), 6))
 for i, (ratio, df) in enumerate(datasets):
     axes[i].fill_between(df['tolerance_km'], 0, df['coarse_s'], label='Coarse', alpha=0.7)
@@ -58,10 +45,10 @@ for i, (ratio, df) in enumerate(datasets):
     axes[i].legend(fontsize=11)
     axes[i].grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig('4_time_breakdown.png', dpi=300, bbox_inches='tight')
+plt.savefig('3_time_breakdown.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Plot 5
+# Plot 4
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 for i, (ratio, df) in enumerate(datasets):
     ax1.plot(df['tolerance_km'], df['conj'], 'o-', linewidth=2, markersize=8, label=f'Ratio {ratio}')
@@ -89,5 +76,5 @@ for bar, val in zip(bars, avg_conj):
              f'{val:.1f}', ha='center', va='bottom', fontsize=10)
 
 plt.tight_layout()
-plt.savefig('5_conjunctions.png', dpi=300, bbox_inches='tight')
+plt.savefig('4_conjunctions.png', dpi=300, bbox_inches='tight')
 plt.close()

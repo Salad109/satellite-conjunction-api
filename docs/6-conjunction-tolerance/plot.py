@@ -1,7 +1,22 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import glob
 
-df = pd.read_csv('conjunction_benchmark.csv')
+# Read all CSV files in the directory
+csv_files = glob.glob('*.csv')
+print(f"Found {len(csv_files)} CSV files")
+
+# Load and concatenate all CSVs
+dfs = []
+for csv_file in csv_files:
+    df_temp = pd.read_csv(csv_file)
+    dfs.append(df_temp)
+
+all_data = pd.concat(dfs, ignore_index=True)
+
+# Group by tolerance_km and average all other numeric columns
+df = all_data.groupby('tolerance_km', as_index=False).mean(numeric_only=True)
+
 min_time_idx = df['total_s'].idxmin()
 
 # Plot 1
@@ -19,17 +34,6 @@ plt.close()
 
 # Plot 2
 fig, ax = plt.subplots(figsize=(10, 6))
-ax.plot(df['tolerance_km'], df['detections']/1e6, 'o-', color='#A23B72', linewidth=2, markersize=8)
-ax.set_xlabel('Tolerance (km)', fontsize=12)
-ax.set_ylabel('Detections (millions)', fontsize=12)
-ax.set_title('Detections vs Tolerance', fontsize=14, fontweight='bold')
-ax.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.savefig('2_detections.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-# Plot 3
-fig, ax = plt.subplots(figsize=(10, 6))
 ax.plot(df['tolerance_km'], df['coarse_s'], 'o-', label='Coarse', color='#06A77D', linewidth=2, markersize=8)
 ax.plot(df['tolerance_km'], df['refine_s'], 's-', label='Refine', color='#D62839', linewidth=2, markersize=8)
 ax.set_xlabel('Tolerance (km)', fontsize=12)
@@ -38,10 +42,10 @@ ax.set_title('Coarse vs Refine Processing Time', fontsize=14, fontweight='bold')
 ax.legend(fontsize=11)
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig('3_coarse_vs_refine.png', dpi=300, bbox_inches='tight')
+plt.savefig('2_coarse_vs_refine.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Plot 4
+# Plot 3
 fig, ax = plt.subplots(figsize=(10, 6))
 ax.fill_between(df['tolerance_km'], 0, df['coarse_s'], label='Coarse', alpha=0.7, color='#06A77D')
 ax.fill_between(df['tolerance_km'], df['coarse_s'], df['total_s'], label='Refine', alpha=0.7, color='#D62839')
@@ -51,10 +55,10 @@ ax.set_title('Processing Time Breakdown', fontsize=14, fontweight='bold')
 ax.legend(fontsize=11)
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig('4_time_breakdown.png', dpi=300, bbox_inches='tight')
+plt.savefig('3_time_breakdown.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Plot 5
+# Plot 4
 fig, ax = plt.subplots(figsize=(10, 6))
 ax.plot(df['tolerance_km'], df['conj'], 'o-', color='#5E2C99', linewidth=2, markersize=8)
 ax.set_xlabel('Tolerance (km)', fontsize=12)
@@ -62,5 +66,5 @@ ax.set_ylabel('Conjunctions', fontsize=12)
 ax.set_title('Conjunctions Detected', fontsize=14, fontweight='bold')
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig('5_conjunctions.png', dpi=300, bbox_inches='tight')
+plt.savefig('4_conjunctions.png', dpi=300, bbox_inches='tight')
 plt.close()

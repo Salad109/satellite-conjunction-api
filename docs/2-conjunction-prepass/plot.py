@@ -22,19 +22,6 @@ plt.savefig('1_total_time.png', dpi=300, bbox_inches='tight')
 plt.close()
 
 # Plot 2
-fig, ax = plt.subplots(figsize=(10, 6))
-for i, (prepass, df) in enumerate(datasets):
-    ax.plot(df['tolerance_km'], df['detections']/1e6, 'o-', linewidth=2, markersize=8, label=f'Prepass {prepass}')
-ax.set_xlabel('Tolerance (km)', fontsize=12)
-ax.set_ylabel('Detections (millions)', fontsize=12)
-ax.set_title('Detections vs Tolerance', fontsize=14, fontweight='bold')
-ax.legend(fontsize=11)
-ax.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.savefig('2_detections.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-# Plot 3
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 for i, (prepass, df) in enumerate(datasets):
     ax1.plot(df['tolerance_km'], df['coarse_s'], 'o-', linewidth=2, markersize=8, label=f'Prepass {prepass}')
@@ -50,10 +37,10 @@ ax2.set_title('Refine Processing Time', fontsize=14, fontweight='bold')
 ax2.legend(fontsize=11)
 ax2.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig('3_coarse_vs_refine.png', dpi=300, bbox_inches='tight')
+plt.savefig('2_coarse_vs_refine.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Plot 4
+# Plot 3
 n_datasets = len(datasets)
 n_cols = 4
 n_rows = math.ceil(n_datasets / n_cols)
@@ -70,10 +57,10 @@ for i, (prepass, df) in enumerate(datasets):
 for i in range(n_datasets, len(axes)):
     axes[i].axis('off')
 plt.tight_layout()
-plt.savefig('4_time_breakdown.png', dpi=300, bbox_inches='tight')
+plt.savefig('3_time_breakdown.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Plot 5
+# Plot 4
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 for i, (prepass, df) in enumerate(datasets):
     ax1.plot(df['tolerance_km'], df['conj'], 'o-', linewidth=2, markersize=8, label=f'Prepass {prepass}')
@@ -101,5 +88,5 @@ for bar, val in zip(bars, avg_conj):
              f'{val:.1f}', ha='center', va='bottom', fontsize=10)
 
 plt.tight_layout()
-plt.savefig('5_conjunctions.png', dpi=300, bbox_inches='tight')
+plt.savefig('4_conjunctions.png', dpi=300, bbox_inches='tight')
 plt.close()
