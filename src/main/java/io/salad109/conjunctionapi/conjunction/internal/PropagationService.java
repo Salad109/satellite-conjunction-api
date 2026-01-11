@@ -166,11 +166,17 @@ public class PropagationService {
     record PositionCache(Map<Integer, Integer> noradIdToArrayId, OffsetDateTime[] times,
                          double[][] x, double[][] y, double[][] z,
                          boolean[][] valid) {
-        public double distanceSquaredAt(int a, int b, int step) {
+        public double distanceSquaredAt(int a, int b, int step, double tolSq) {
             double dx = x[a][step] - x[b][step];
+            double dxSq = dx * dx;
+            if (dxSq > tolSq) return dxSq;
+
             double dy = y[a][step] - y[b][step];
+            double dySq = dxSq + dy * dy;
+            if (dySq > tolSq) return dySq;
+
             double dz = z[a][step] - z[b][step];
-            return dx * dx + dy * dy + dz * dz;
+            return dySq + dz * dz;
         }
 
         public boolean validAt(int a, int b, int step) {

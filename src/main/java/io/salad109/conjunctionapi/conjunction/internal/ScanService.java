@@ -119,7 +119,7 @@ public class ScanService {
 
                     for (int step = 0; step < totalSteps; step++) {
                         if (!precomputedPositions.validAt(idxA, idxB, step)) continue;
-                        double distSq = precomputedPositions.distanceSquaredAt(idxA, idxB, step);
+                        double distSq = precomputedPositions.distanceSquaredAt(idxA, idxB, step, tolSq);
                         if (distSq < tolSq) {
                             consumer.accept(new CoarseDetection(pair, precomputedPositions.times()[step], Math.sqrt(distSq)));
                         }
