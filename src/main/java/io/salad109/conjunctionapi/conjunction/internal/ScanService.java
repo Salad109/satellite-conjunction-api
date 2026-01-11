@@ -58,7 +58,7 @@ public class ScanService {
 
         // Refine and filter by threshold
         List<Conjunction> conjunctionsUnderThreshold = allEvents.parallelStream()
-                .map(event -> refineEvent(event, propagators, stepSeconds))
+                .map(event -> refineEvent(event, propagators, stepSeconds, thresholdKm))
                 .filter(refined -> refined.getMissDistanceKm() <= thresholdKm)
                 .toList();
 
@@ -192,7 +192,7 @@ public class ScanService {
     /**
      * Refine an event (cluster of coarse detections) using Brent's method to find more accurate TCA and minimum distance.
      */
-    Conjunction refineEvent(List<CoarseDetection> event, Map<Integer, TLEPropagator> propagators, int stepSeconds) {
+    Conjunction refineEvent(List<CoarseDetection> event, Map<Integer, TLEPropagator> propagators, int stepSeconds, double thresholdKm) {
         CoarseDetection best = event.stream()
                 .min(Comparator.comparing(CoarseDetection::distance))
                 .orElseThrow();
@@ -203,8 +203,8 @@ public class ScanService {
         OffsetDateTime baseTime = best.time().minusNanos(halfWindowNanos);
 
         // Use Brent's method from Apache Commons Math
-        // Only absolute tolerance matters. 50ms = 50,000,000 nanoseconds
-        BrentOptimizer optimizer = new BrentOptimizer(1e-8, 50_000_000);
+        // Only absolute tolerance matters. 0.17s = 2.5km@15km/s is sufficient precision
+        BrentOptimizer optimizer = new BrentOptimizer(1e-8, 166_666_667);
 
         UnivariateObjectiveFunction objectiveFunction = new UnivariateObjectiveFunction(
                 offsetNanos -> propagationService.propagateAndMeasureDistance(pair, propagators, baseTime.plusNanos((long) offsetNanos))
@@ -220,7 +220,10 @@ public class ScanService {
         OffsetDateTime tca = baseTime.plusNanos((long) result.getPoint());
         double minDistance = result.getValue();
 
-        double relativeVelocity = propagationService.propagateAndMeasureVelocity(pair, propagators, tca);
+        // Only calculate velocity for conjunctions under threshold
+        double relativeVelocity = minDistance <= thresholdKm
+                ? propagationService.propagateAndMeasureVelocity(pair, propagators, tca)
+                : 0.0;
 
         // Ensure object 1 norad id < object 2 norad id
         int object1 = Math.min(pair.a().getNoradCatId(), pair.b().getNoradCatId());

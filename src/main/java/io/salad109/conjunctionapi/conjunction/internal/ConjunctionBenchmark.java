@@ -129,7 +129,7 @@ public class ConjunctionBenchmark implements CommandLineRunner {
                 .toList();
 
         long refineStart = System.nanoTime();
-        List<Conjunction> refined = allEvents.parallelStream().map(event -> scanService.refineEvent(event, propagators, stepSeconds))
+        List<Conjunction> refined = allEvents.parallelStream().map(event -> scanService.refineEvent(event, propagators, stepSeconds, thresholdKm))
                 .filter(c -> c.getMissDistanceKm() <= thresholdKm)
                 .toList();
         long refineTime = System.nanoTime() - refineStart;
